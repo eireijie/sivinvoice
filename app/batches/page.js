@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/app-shell";
+import { PhoneUploadQr } from "@/components/phone-upload-qr";
 import Link from "next/link";
 import { getActiveWorkspacePlan } from "@/lib/organization";
 import { BatchesClient } from "./batches-client";
@@ -9,7 +10,12 @@ export default async function BatchesPage() {
   const plan = await getActiveWorkspacePlan();
   return (
     <AppShell eyebrow="Batch Intake" title="Batch Upload">
-      {plan.id === "free" ? <BatchUpgrade /> : <BatchesClient />}
+      {plan.id === "free" ? <BatchUpgrade /> : (
+        <>
+          <PhoneUploadQr mode="batch" />
+          <BatchesClient />
+        </>
+      )}
     </AppShell>
   );
 }

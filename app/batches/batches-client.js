@@ -7,7 +7,7 @@ import { ProcessingOverlay } from "@/components/processing-overlay";
 import { optimizeInvoiceFiles } from "@/lib/clientInvoiceImages";
 import { invoiceFileAccept } from "@/lib/invoiceFiles";
 
-export function BatchesClient() {
+export function BatchesClient({ uploadOnly = false }) {
   const [files, setFiles] = useState([]);
   const [maxPages, setMaxPages] = useState(10);
   const [batches, setBatches] = useState([]);
@@ -19,8 +19,9 @@ export function BatchesClient() {
   const [uploadResults, setUploadResults] = useState([]);
 
   useEffect(() => {
-    load();
-  }, []);
+    if (!uploadOnly) load();
+    else setLoading(false);
+  }, [uploadOnly]);
 
   async function load({ preserveMessage = false } = {}) {
     setLoading(true);
@@ -67,7 +68,7 @@ export function BatchesClient() {
     const duplicateCount = results.filter((result) => result.duplicate).length;
     const createdCount = results.length - duplicateCount;
     setMessage(resultMessage(createdCount, duplicateCount, results));
-    await load({ preserveMessage: true });
+    if (!uploadOnly) await load({ preserveMessage: true });
   }
 
   async function addSelectedFiles(fileList) {
@@ -217,7 +218,7 @@ export function BatchesClient() {
         </div>
       </form>
 
-      <section className="panel grid">
+      {!uploadOnly ? <section className="panel grid">
         <div className="topbar" style={{ marginBottom: 0 }}>
           <div>
             <h2>Recent batches</h2>
@@ -248,7 +249,7 @@ export function BatchesClient() {
             </tbody>
           </table>
         </div>
-      </section>
+      </section> : null}
     </div>
   );
 }

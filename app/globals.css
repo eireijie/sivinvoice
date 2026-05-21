@@ -638,6 +638,78 @@ h2 {
   margin-bottom: 4px;
 }
 
+.phone-upload-card {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.phone-upload-card h2,
+.phone-upload-card p {
+  margin: 4px 0 0;
+}
+
+.phone-qr-modal {
+  display: grid;
+  gap: 16px;
+  max-width: 440px;
+  width: min(440px, calc(100vw - 32px));
+}
+
+.phone-qr-box {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  display: grid;
+  min-height: 280px;
+  padding: 18px;
+  place-items: center;
+}
+
+.phone-qr-box img {
+  display: block;
+  height: auto;
+  max-width: 100%;
+  width: 280px;
+}
+
+.mobile-upload-shell {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(34, 197, 143, .16), transparent 22rem),
+    var(--bg);
+  min-height: 100vh;
+  padding: 18px 14px 28px;
+}
+
+.mobile-upload-header {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  margin: 0 auto 18px;
+  max-width: 680px;
+}
+
+.mobile-upload-header h1 {
+  font-size: 28px;
+  line-height: 1.05;
+  margin: 0;
+}
+
+.mobile-upload-shell > .grid,
+.mobile-upload-shell > .panel,
+.mobile-upload-note {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 680px;
+}
+
+.mobile-upload-note {
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.5;
+}
+
 .table-wrap {
   max-width: 100%;
   max-height: min(72vh, 680px);
@@ -1011,6 +1083,19 @@ tr:last-child td {
     display: grid;
     grid-template-columns: 1fr 1fr;
     width: 100%;
+  }
+
+  .phone-upload-card {
+    align-items: stretch;
+    display: grid;
+  }
+
+  .phone-upload-card .button {
+    width: 100%;
+  }
+
+  .mobile-upload-shell {
+    padding: 14px 12px 24px;
   }
 
   .selected-file-list {
