@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Eye, EyeOff, Loader2, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
+import { Eye, EyeOff, FileText, Loader2, Plus, RotateCcw, Save, Trash2, UploadCloud } from "lucide-react";
+import { invoiceFileAccept } from "@/lib/invoiceFiles";
 
 const emptyLine = {
   product_name_raw: "",
@@ -29,9 +30,17 @@ export function ReviewForm({ invoice }) {
   });
   const [lines, setLines] = useState((invoice.invoice_line_items || []).map(({ id, invoice_id, created_at, ...line }) => line));
   const [saving, setSaving] = useState(false);
+  const [appendingOriginals, setAppendingOriginals] = useState(false);
   const [error, setError] = useState("");
   const [showViewer, setShowViewer] = useState(true);
+  const [activeOriginalIndex, setActiveOriginalIndex] = useState(0);
   const processingStarted = useRef(false);
+  const originalFiles = invoice.original_files?.length
+    ? invoice.original_files
+    : invoice.signed_url
+      ? [{ fileName: invoice.original_file_name || "Original invoice", mimeType: invoice.mime_type, signedUrl: invoice.signed_url, index: 1 }]
+      : [];
+  const activeOriginal = originalFiles[Math.min(activeOriginalIndex, Math.max(originalFiles.length - 1, 0))];
   const isProcessing = invoice.parse_status === "processing";
   const processingFailed = invoice.parse_status === "processing_failed";
   const extractedTotal = roundMoney(lines.reduce((sum, line) => sum + Number(line.total_cost || 0), 0));
@@ -100,6 +109,23 @@ export function ReviewForm({ invoice }) {
     window.location.reload();
   }
 
+  async function appendOriginalFiles(fileList) {
+    const selected = Array.from(fileList || []);
+    if (!selected.length) return;
+    setAppendingOriginals(true);
+    setError("");
+    const body = new FormData();
+    selected.forEach((file) => body.append("files", file));
+    const response = await fetch(`/api/invoices/${invoice.id}`, { method: "PATCH", body });
+    const payload = await response.json();
+    setAppendingOriginals(false);
+    if (!response.ok) {
+      setError(payload.error || "Unable to add original pages.");
+      return;
+    }
+    router.refresh();
+  }
+
   if (isProcessing || processingFailed) {
     return (
       <div className="grid">
@@ -143,18 +169,71 @@ export function ReviewForm({ invoice }) {
     <div className="grid">
       {showViewer ? (
         <section className="viewer viewer-top">
-          {invoice.signed_url ? (
+          {activeOriginal?.signedUrl ? (
             <>
               <div className="viewer-toolbar">
-                <button className="button ghost" onClick={() => setShowViewer(false)} type="button">
-                  <EyeOff size={16} /> Hide
-                </button>
-                <a className="button secondary" href={invoice.signed_url} target="_blank" rel="noreferrer">Open original</a>
+                <div className="viewer-file-summary">
+                  <FileText size={16} />
+                  <strong>{activeOriginal.fileName || "Original invoice"}</strong>
+                  <span>{originalFiles.length} file{originalFiles.length === 1 ? "" : "s"} saved</span>
+                </div>
+                <div className="viewer-toolbar-actions">
+                  <label className="button secondary compact">
+                    <input
+                      accept={invoiceFileAccept}
+                      hidden
+                      multiple
+                      type="file"
+                      onChange={(event) => {
+                        appendOriginalFiles(event.target.files);
+                        event.target.value = "";
+                      }}
+                    />
+                    <UploadCloud size={15} />
+                    {appendingOriginals ? "Adding..." : "Add original page"}
+                  </label>
+                  <button className="button ghost" onClick={() => setShowViewer(false)} type="button">
+                    <EyeOff size={16} /> Hide
+                  </button>
+                  <a className="button secondary" href={activeOriginal.signedUrl} target="_blank" rel="noreferrer">Open original</a>
+                </div>
               </div>
-              {invoice.mime_type?.startsWith("image/") ? <img src={invoice.signed_url} alt="Original invoice" /> : <iframe src={invoice.signed_url} title="Original invoice" />}
+              {originalFiles.length > 1 ? (
+                <div className="original-file-tabs">
+                  {originalFiles.map((file, index) => (
+                    <button
+                      className={index === activeOriginalIndex ? "active" : ""}
+                      key={`${file.path || file.fileName}-${index}`}
+                      onClick={() => setActiveOriginalIndex(index)}
+                      type="button"
+                    >
+                      {index + 1}. {file.fileName || "Original page"}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {activeOriginal.mimeType?.startsWith("image/")
+                ? <img src={activeOriginal.signedUrl} alt="Original invoice" />
+                : <iframe src={activeOriginal.signedUrl} title="Original invoice" />}
             </>
           ) : (
-            <div className="panel">Original invoice file is unavailable.</div>
+            <div className="panel grid">
+              <p>Original invoice file is unavailable.</p>
+              <label className="button secondary compact" style={{ width: "fit-content" }}>
+                <input
+                  accept={invoiceFileAccept}
+                  hidden
+                  multiple
+                  type="file"
+                  onChange={(event) => {
+                    appendOriginalFiles(event.target.files);
+                    event.target.value = "";
+                  }}
+                />
+                <UploadCloud size={15} />
+                {appendingOriginals ? "Adding..." : "Add original page"}
+              </label>
+            </div>
           )}
         </section>
       ) : null}

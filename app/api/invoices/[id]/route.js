@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { deleteInvoice, getInvoiceForReview, processPendingInvoice, updateInvoiceReview } from "@/lib/invoices";
+import { appendInvoiceOriginalFiles, deleteInvoice, getInvoiceForReview, processPendingInvoice, updateInvoiceReview } from "@/lib/invoices";
 
 export async function GET(_request, { params }) {
   try {
@@ -18,6 +18,18 @@ export async function PUT(request, { params }) {
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(request, { params }) {
+  try {
+    const routeParams = await params;
+    const formData = await request.formData();
+    const files = formData.getAll("files");
+    const result = await appendInvoiceOriginalFiles(routeParams.id, files);
+    return NextResponse.json({ ok: true, ...result });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: error.status || 500 });
   }
 }
 
