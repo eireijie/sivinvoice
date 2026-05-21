@@ -76,7 +76,7 @@ export function ReviewForm({ invoice }) {
           const status = payload.invoice?.parse_status;
           if (!stopped && status && status !== "processing") {
             window.clearInterval(interval);
-            router.refresh();
+            window.location.reload();
           }
         } catch {
           // Keep polling. Temporary network misses should not strand the screen.
@@ -84,7 +84,7 @@ export function ReviewForm({ invoice }) {
       }, 2500);
       window.setTimeout(() => {
         window.clearInterval(interval);
-        if (!stopped) router.refresh();
+        if (!stopped) window.location.reload();
       }, 180000);
     }
 
@@ -97,7 +97,7 @@ export function ReviewForm({ invoice }) {
   async function retryProcessing() {
     setError("");
     await fetch(`/api/invoices/${invoice.id}`, { method: "POST" });
-    router.refresh();
+    window.location.reload();
   }
 
   if (isProcessing || processingFailed) {
