@@ -4,14 +4,27 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AlertTriangle, CheckCircle2, FileText, UploadCloud } from "lucide-react";
 import { ProcessingOverlay } from "@/components/processing-overlay";
+import { optimizeInvoiceFile } from "@/lib/clientInvoiceImages";
 import { invoiceFileAccept } from "@/lib/invoiceFiles";
 
 export function UploadForm() {
   const router = useRouter();
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
   const [error, setError] = useState("");
   const [duplicate, setDuplicate] = useState(null);
+
+  async function chooseFile(nextFile) {
+    if (!nextFile) {
+      setFile(null);
+      return;
+    }
+    setOptimizing(true);
+    setError("");
+    setFile(await optimizeInvoiceFile(nextFile));
+    setOptimizing(false);
+  }
 
   async function submit(event) {
     event.preventDefault();
@@ -38,10 +51,10 @@ export function UploadForm() {
   return (
     <>
       <ProcessingOverlay
-        active={busy}
+        active={busy || optimizing}
         title="Extracting invoice line items"
-        detail={file ? `Processing ${file.name}` : "Uploading and processing invoice"}
-        steps={["Checking duplicates", "Running OCR", "Parsing product rows", "Preparing review screen"]}
+        detail={optimizing ? "Optimizing image before upload" : file ? `Processing ${file.name}` : "Uploading and processing invoice"}
+        steps={optimizing ? ["Shrinking phone photo", "Preparing upload", "Keeping OCR quality"] : ["Checking duplicates", "Running OCR", "Parsing product rows", "Preparing review screen"]}
       />
       <form className="grid" onSubmit={submit}>
         <label className={file ? "drop file-drop is-ready" : "drop file-drop"}>
@@ -49,7 +62,7 @@ export function UploadForm() {
             accept={invoiceFileAccept}
             hidden
             type="file"
-            onChange={(event) => setFile(event.target.files?.[0] || null)}
+            onChange={(event) => chooseFile(event.target.files?.[0] || null)}
           />
           <span>
             {file ? <CheckCircle2 size={42} /> : <UploadCloud size={38} />}
@@ -88,7 +101,7 @@ export function UploadForm() {
         <div>
           <button className="button" disabled={!file || busy}>
             <UploadCloud size={16} />
-            {busy ? "Processing invoice..." : "Upload and Extract"}
+            {busy ? "Processing invoice..." : optimizing ? "Optimizing..." : "Upload and Extract"}
           </button>
         </div>
       </form>

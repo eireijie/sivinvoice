@@ -3,6 +3,7 @@
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, FileText, UploadCloud, X } from "lucide-react";
+import { optimizeInvoiceFiles } from "@/lib/clientInvoiceImages";
 import { getUnsupportedInvoiceFileMessage, isSupportedInvoiceFile } from "@/lib/invoiceFiles";
 
 export function GlobalInvoiceDrop() {
@@ -64,7 +65,8 @@ export function GlobalInvoiceDrop() {
   }, []);
 
   async function uploadFiles(files) {
-    const nextJobs = files.map((file) => ({
+    const optimizedFiles = await optimizeInvoiceFiles(files);
+    const nextJobs = optimizedFiles.map((file) => ({
       id: crypto.randomUUID(),
       file,
       status: "uploading",

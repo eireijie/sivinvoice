@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, FileStack, Plus, RotateCcw, UploadCloud, X } from "lucide-react";
 import { ProcessingOverlay } from "@/components/processing-overlay";
+import { optimizeInvoiceFiles } from "@/lib/clientInvoiceImages";
 import { invoiceFileAccept } from "@/lib/invoiceFiles";
 
 export function BatchesClient() {
@@ -11,6 +12,7 @@ export function BatchesClient() {
   const [maxPages, setMaxPages] = useState(10);
   const [batches, setBatches] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -68,12 +70,15 @@ export function BatchesClient() {
     await load({ preserveMessage: true });
   }
 
-  function addSelectedFiles(fileList) {
+  async function addSelectedFiles(fileList) {
     const selected = Array.from(fileList || []);
     if (!selected.length) return;
+    setOptimizing(true);
+    const optimized = await optimizeInvoiceFiles(selected);
+    setOptimizing(false);
     setFiles((current) => {
       const existingKeys = new Set(current.map(fileKey));
-      const additions = selected.filter((file) => !existingKeys.has(fileKey(file)));
+      const additions = optimized.filter((file) => !existingKeys.has(fileKey(file)));
       return [...current, ...additions];
     });
   }
@@ -88,10 +93,10 @@ export function BatchesClient() {
   return (
     <div className="grid">
       <ProcessingOverlay
-        active={busy}
+        active={busy || optimizing}
         title="Detecting invoices in batch"
-        detail={files.length ? `Processing ${files.length} file${files.length === 1 ? "" : "s"}` : "Uploading and detecting invoice groups"}
-        steps={["Checking duplicates", `OCR on PDFs and images`, "Detecting invoice records", "Saving review items"]}
+        detail={optimizing ? "Optimizing selected images before upload" : files.length ? `Processing ${files.length} file${files.length === 1 ? "" : "s"}` : "Uploading and detecting invoice groups"}
+        steps={optimizing ? ["Shrinking phone photos", "Preparing files", "Keeping OCR quality"] : ["Checking duplicates", `OCR on PDFs and images`, "Detecting invoice records", "Saving review items"]}
       />
       <form className="grid" onSubmit={submit}>
         <label className={files.length ? "drop file-drop is-ready" : "drop file-drop"}>
@@ -207,7 +212,7 @@ export function BatchesClient() {
         <div>
           <button className="button" disabled={!files.length || busy}>
             <UploadCloud size={16} />
-            {busy ? "Detecting invoices..." : `Upload and Detect${files.length > 1 ? ` ${files.length} files` : ""}`}
+            {busy ? "Detecting invoices..." : optimizing ? "Optimizing..." : `Upload and Detect${files.length > 1 ? ` ${files.length} files` : ""}`}
           </button>
         </div>
       </form>
