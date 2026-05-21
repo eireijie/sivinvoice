@@ -2,38 +2,45 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { AlertTriangle, CheckCircle2, FileText, UploadCloud } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileText, Plus, UploadCloud, X } from "lucide-react";
 import { ProcessingOverlay } from "@/components/processing-overlay";
-import { optimizeInvoiceFile } from "@/lib/clientInvoiceImages";
+import { optimizeInvoiceFiles } from "@/lib/clientInvoiceImages";
 import { invoiceFileAccept } from "@/lib/invoiceFiles";
 
 export function UploadForm() {
   const router = useRouter();
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
   const [error, setError] = useState("");
   const [duplicate, setDuplicate] = useState(null);
 
-  async function chooseFile(nextFile) {
-    if (!nextFile) {
-      setFile(null);
-      return;
-    }
+  async function addFiles(fileList) {
+    const selected = Array.from(fileList || []);
+    if (!selected.length) return;
     setOptimizing(true);
     setError("");
-    setFile(await optimizeInvoiceFile(nextFile));
+    const optimized = await optimizeInvoiceFiles(selected);
+    setFiles((current) => {
+      const existingKeys = new Set(current.map(fileKey));
+      const additions = optimized.filter((file) => !existingKeys.has(fileKey(file)));
+      return [...current, ...additions].slice(0, 6);
+    });
     setOptimizing(false);
+  }
+
+  function removeFile(targetFile) {
+    setFiles((current) => current.filter((file) => fileKey(file) !== fileKey(targetFile)));
   }
 
   async function submit(event) {
     event.preventDefault();
-    if (!file) return;
+    if (!files.length) return;
     setBusy(true);
     setError("");
     setDuplicate(null);
     const body = new FormData();
-    body.append("file", file);
+    files.forEach((file) => body.append("files", file));
     const response = await fetch("/api/upload", { method: "POST", body });
     const payload = await response.json();
     setBusy(false);
@@ -53,35 +60,69 @@ export function UploadForm() {
       <ProcessingOverlay
         active={busy || optimizing}
         title="Extracting invoice line items"
-        detail={optimizing ? "Optimizing image before upload" : file ? `Processing ${file.name}` : "Uploading and processing invoice"}
+        detail={optimizing ? "Optimizing images before upload" : files.length ? `Processing ${files.length} file${files.length === 1 ? "" : "s"} as one invoice` : "Uploading and processing invoice"}
         steps={optimizing ? ["Shrinking phone photo", "Preparing upload", "Keeping OCR quality"] : ["Checking duplicates", "Running OCR", "Parsing product rows", "Preparing review screen"]}
       />
       <form className="grid" onSubmit={submit}>
-        <label className={file ? "drop file-drop is-ready" : "drop file-drop"}>
+        <label className={files.length ? "drop file-drop is-ready" : "drop file-drop"}>
           <input
             accept={invoiceFileAccept}
             hidden
+            multiple
             type="file"
-            onChange={(event) => chooseFile(event.target.files?.[0] || null)}
+            onChange={(event) => {
+              addFiles(event.target.files);
+              event.target.value = "";
+            }}
           />
           <span>
-            {file ? <CheckCircle2 size={42} /> : <UploadCloud size={38} />}
-            <h2>{file ? file.name : "Select a PDF or invoice image"}</h2>
+            {files.length ? <CheckCircle2 size={42} /> : <UploadCloud size={38} />}
+            <h2>{files.length ? `${files.length} file${files.length === 1 ? "" : "s"} attached` : "Select files for one invoice"}</h2>
             <p className="muted">
-              {file
-                ? `${formatBytes(file.size)} ready · click to change`
-                : "Single-invoice uploads scan up to 3 pages. Use Batch Upload for scanned stacks or multi-invoice PDFs."}
+              {files.length
+                ? `${formatBytes(totalFileSize(files))} ready · tap to add another page`
+                : "Attach one PDF, or multiple photos/pages that all belong to the same invoice."}
             </p>
           </span>
         </label>
-        {file ? (
-          <div className="panel selected-files-panel">
+        {files.length ? (
+          <div className="panel grid selected-files-panel">
             <div className="selected-files-header">
               <div>
                 <h2>Ready to upload</h2>
-                <p className="muted">{file.name} · {formatBytes(file.size)}</p>
+                <p className="muted">{files.length} file{files.length === 1 ? "" : "s"} will be saved as one invoice · {formatBytes(totalFileSize(files))}</p>
               </div>
-              <span className="badge"><FileText size={14} /> Attached</span>
+              <div className="selected-files-actions">
+                <label className="button secondary compact">
+                  <input
+                    accept={invoiceFileAccept}
+                    hidden
+                    multiple
+                    type="file"
+                    onChange={(event) => {
+                      addFiles(event.target.files);
+                      event.target.value = "";
+                    }}
+                  />
+                  <Plus size={15} />
+                  Add page
+                </label>
+                <button className="button ghost compact" type="button" onClick={() => setFiles([])}>
+                  Clear all
+                </button>
+              </div>
+            </div>
+            <div className="selected-file-list">
+              {files.map((file, index) => (
+                <span key={fileKey(file)}>
+                  <FileText size={14} />
+                  <strong>{index + 1}. {file.name}</strong>
+                  <small>{formatBytes(file.size)}</small>
+                  <button type="button" onClick={() => removeFile(file)} aria-label={`Remove ${file.name}`}>
+                    <X size={13} />
+                  </button>
+                </span>
+              ))}
             </div>
           </div>
         ) : null}
@@ -99,14 +140,22 @@ export function UploadForm() {
           </div>
         ) : null}
         <div>
-          <button className="button" disabled={!file || busy}>
+          <button className="button" disabled={!files.length || busy || optimizing}>
             <UploadCloud size={16} />
-            {busy ? "Processing invoice..." : optimizing ? "Optimizing..." : "Upload and Extract"}
+            {busy ? "Processing invoice..." : optimizing ? "Optimizing..." : "Upload as One Invoice"}
           </button>
         </div>
       </form>
     </>
   );
+}
+
+function totalFileSize(files) {
+  return files.reduce((sum, file) => sum + file.size, 0);
+}
+
+function fileKey(file) {
+  return `${file.name}-${file.size}-${file.lastModified}`;
 }
 
 function formatBytes(bytes) {
