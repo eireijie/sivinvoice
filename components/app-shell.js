@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, FileSearch, Files, PanelLeftClose, PanelLeftOpen, Search, Settings, Store, Upload } from "lucide-react";
+import { BarChart3, FileSearch, Files, GripVertical, Search, Settings, Store, Upload } from "lucide-react";
 import { AuthStatus } from "@/components/auth-status";
 import { GlobalInvoiceDrop } from "@/components/global-invoice-drop";
 import { OnboardingTour } from "@/components/onboarding-tour";
@@ -25,10 +25,11 @@ export function AppShell({ children, eyebrow, title, action }) {
   const pathname = usePathname();
   const [businessName, setBusinessName] = useState("SIV");
   const [planId, setPlanId] = useState(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(248);
 
   useEffect(() => {
-    setSidebarCollapsed(window.localStorage.getItem("siv-sidebar-collapsed") === "true");
+    const savedWidth = Number(window.localStorage.getItem("siv-sidebar-width"));
+    if (Number.isFinite(savedWidth)) setSidebarWidth(clampSidebarWidth(savedWidth));
     let mounted = true;
     function handleBusinessName(event) {
       setBusinessName(event.detail?.name?.trim() || "SIV");
@@ -54,28 +55,44 @@ export function AppShell({ children, eyebrow, title, action }) {
     };
   }, []);
 
-  function toggleSidebar() {
-    setSidebarCollapsed((collapsed) => {
-      const next = !collapsed;
-      window.localStorage.setItem("siv-sidebar-collapsed", String(next));
-      return next;
-    });
+  function startSidebarResize(event) {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = sidebarWidth;
+    document.body.classList.add("sidebar-resizing");
+
+    function onPointerMove(moveEvent) {
+      const nextWidth = clampSidebarWidth(startWidth + moveEvent.clientX - startX);
+      setSidebarWidth(nextWidth);
+      window.localStorage.setItem("siv-sidebar-width", String(nextWidth));
+    }
+
+    function onPointerUp() {
+      document.body.classList.remove("sidebar-resizing");
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    }
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
   }
 
+  const sidebarCompact = sidebarWidth <= 126;
+
   return (
-    <div className={sidebarCollapsed ? "shell sidebar-collapsed" : "shell"}>
+    <div className={sidebarCompact ? "shell sidebar-compact" : "shell"} style={{ "--sidebar-width": `${sidebarWidth}px` }}>
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-mark">SIV</div>
           <span title={businessName}>{businessName}</span>
           <button
-            className="sidebar-toggle"
+            className="sidebar-resize-handle"
             type="button"
-            onClick={toggleSidebar}
-            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            onPointerDown={startSidebarResize}
+            title="Drag to resize sidebar"
+            aria-label="Drag to resize sidebar"
           >
-            {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+            <GripVertical size={18} />
           </button>
         </div>
         <nav className="nav">
@@ -124,4 +141,8 @@ export function AppShell({ children, eyebrow, title, action }) {
       <GlobalInvoiceDrop />
     </div>
   );
+}
+
+function clampSidebarWidth(width) {
+  return Math.min(320, Math.max(84, Math.round(width)));
 }

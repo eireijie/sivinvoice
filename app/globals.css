@@ -150,13 +150,13 @@ textarea {
 .shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 248px 1fr;
+  grid-template-columns: var(--sidebar-width, 248px) minmax(0, 1fr);
   min-width: 0;
-  transition: grid-template-columns .18s ease;
 }
 
-.shell.sidebar-collapsed {
-  grid-template-columns: 84px minmax(0, 1fr);
+.sidebar-resizing {
+  cursor: col-resize;
+  user-select: none;
 }
 
 .sidebar {
@@ -206,7 +206,7 @@ textarea {
   font-weight: 900;
 }
 
-.sidebar-toggle {
+.sidebar-resize-handle {
   margin-left: auto;
   width: 34px;
   height: 34px;
@@ -216,56 +216,57 @@ textarea {
   color: #d6e4de;
   display: grid;
   place-items: center;
-  cursor: pointer;
+  cursor: col-resize;
+  touch-action: none;
   transition: background .15s ease, color .15s ease, border-color .15s ease;
 }
 
-.sidebar-toggle:hover {
+.sidebar-resize-handle:hover {
   background: var(--sidebar-2);
   color: #fff;
   border-color: rgba(255,255,255,.22);
 }
 
-.shell.sidebar-collapsed .sidebar {
+.shell.sidebar-compact .sidebar {
   padding: 22px 14px;
   align-items: center;
 }
 
-.shell.sidebar-collapsed .brand {
+.shell.sidebar-compact .brand {
   width: 100%;
   justify-content: center;
   margin-bottom: 24px;
 }
 
-.shell.sidebar-collapsed .brand span,
-.shell.sidebar-collapsed .nav a span,
-.shell.sidebar-collapsed .nav-tour-button span {
+.shell.sidebar-compact .brand span,
+.shell.sidebar-compact .nav a span,
+.shell.sidebar-compact .nav-tour-button span {
   display: none;
 }
 
-.shell.sidebar-collapsed .brand-mark {
+.shell.sidebar-compact .brand-mark {
   display: none;
 }
 
-.shell.sidebar-collapsed .sidebar-toggle {
+.shell.sidebar-compact .sidebar-resize-handle {
   margin-left: 0;
 }
 
-.shell.sidebar-collapsed .nav,
-.shell.sidebar-collapsed .nav-bottom {
+.shell.sidebar-compact .nav,
+.shell.sidebar-compact .nav-bottom {
   width: 100%;
 }
 
-.shell.sidebar-collapsed .nav a,
-.shell.sidebar-collapsed .nav-tour-button {
+.shell.sidebar-compact .nav a,
+.shell.sidebar-compact .nav-tour-button {
   justify-content: center;
   min-height: 52px;
   padding: 0;
   border-radius: 12px;
 }
 
-.shell.sidebar-collapsed .nav a:hover,
-.shell.sidebar-collapsed .nav-tour-button:hover {
+.shell.sidebar-compact .nav a:hover,
+.shell.sidebar-compact .nav-tour-button:hover {
   transform: none;
 }
 
@@ -983,7 +984,7 @@ tr:last-child td {
     font-size: 15px;
   }
 
-  .sidebar-toggle {
+  .sidebar-resize-handle {
     display: none;
   }
 
