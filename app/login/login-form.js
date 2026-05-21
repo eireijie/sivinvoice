@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { LogIn } from "lucide-react";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
+import { getAppUrl } from "@/lib/siteUrl";
 
 export function LoginForm({ nextPath }) {
   const [email, setEmail] = useState("");
@@ -18,7 +19,7 @@ export function LoginForm({ nextPath }) {
       const supabase = getSupabaseBrowser();
       const result = password
         ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}${nextPath}` } });
+        : await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: getAppUrl(nextPath) } });
       if (result.error) throw result.error;
       if (password) window.location.href = nextPath;
       else setMessage("Check your email for a sign-in link.");

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 import { getPlan, PLAN_ORDER, PLANS } from "@/lib/plans";
+import { getAppUrl } from "@/lib/siteUrl";
 
 export function SignupForm({ initialPlan }) {
   const [firstName, setFirstName] = useState("");
@@ -32,7 +33,7 @@ export function SignupForm({ initialPlan }) {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: getAppUrl("/dashboard"),
           data: {
             first_name: cleanFirstName,
             last_name: cleanLastName,
