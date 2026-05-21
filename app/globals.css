@@ -1610,6 +1610,10 @@ tr:last-child td {
   align-items: end;
 }
 
+.filter-grid-wide {
+  grid-template-columns: minmax(260px, 1.4fr) repeat(auto-fit, minmax(150px, 1fr));
+}
+
 .selected-file-list {
   display: flex;
   flex-wrap: wrap;

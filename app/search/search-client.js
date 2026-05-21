@@ -7,7 +7,16 @@ import { ResultTable } from "@/components/result-table";
 export function SearchClient({ initialQuery }) {
   const [allRows, setAllRows] = useState([]);
   const [filters, setFilters] = useState({ vendors: [], stores: [], sizes: [] });
-  const [browse, setBrowse] = useState({ text: initialQuery || "", vendor: "", store: "", size: "", sort: "recent" });
+  const [browse, setBrowse] = useState({
+    text: initialQuery || "",
+    vendor: "",
+    store: "",
+    size: "",
+    invoiceDate: "",
+    month: "",
+    year: "",
+    sort: "recent"
+  });
   const [loadingBrowse, setLoadingBrowse] = useState(true);
   const [error, setError] = useState("");
 
@@ -44,8 +53,16 @@ export function SearchClient({ initialQuery }) {
     const vendorMatch = !browse.vendor || row.vendor_name === browse.vendor;
     const storeMatch = !browse.store || row.store_name === browse.store;
     const sizeMatch = !browse.size || row.size === browse.size;
-    return textMatch && vendorMatch && storeMatch && sizeMatch;
+    const dateParts = invoiceDateParts(row.invoice_date);
+    const dateMatch = !browse.invoiceDate || row.invoice_date === browse.invoiceDate;
+    const monthMatch = !browse.month || dateParts.month === browse.month;
+    const yearMatch = !browse.year || dateParts.year === browse.year;
+    return textMatch && vendorMatch && storeMatch && sizeMatch && dateMatch && monthMatch && yearMatch;
   }).sort((a, b) => compareRows(a, b, browse.sort));
+  const dateOptions = uniqueDates(allRows);
+  const monthOptions = uniqueMonths(allRows);
+  const yearOptions = uniqueYears(allRows);
+  const resetBrowse = { text: "", vendor: "", store: "", size: "", invoiceDate: "", month: "", year: "", sort: "recent" };
 
   return (
     <div className="grid">
@@ -61,13 +78,13 @@ export function SearchClient({ initialQuery }) {
           <button
             className="button ghost"
             type="button"
-            onClick={() => setBrowse({ text: "", vendor: "", store: "", size: "", sort: "recent" })}
+            onClick={() => setBrowse(resetBrowse)}
           >
             <RotateCcw size={16} />
             Reset
           </button>
         </div>
-        <div className="filter-grid">
+        <div className="filter-grid filter-grid-wide">
           <label className="field">
             <span>Filter records</span>
             <input
@@ -80,6 +97,9 @@ export function SearchClient({ initialQuery }) {
           <FilterSelect label="Vendor" value={browse.vendor} options={filters.vendors} onChange={(vendor) => setBrowse({ ...browse, vendor })} />
           <FilterSelect label="Store" value={browse.store} options={filters.stores} onChange={(store) => setBrowse({ ...browse, store })} />
           <FilterSelect label="Size" value={browse.size} options={filters.sizes} onChange={(size) => setBrowse({ ...browse, size })} />
+          <FilterSelect label="Invoice date" value={browse.invoiceDate} options={dateOptions} onChange={(invoiceDate) => setBrowse({ ...browse, invoiceDate })} />
+          <FilterSelect label="Month" value={browse.month} options={monthOptions} onChange={(month) => setBrowse({ ...browse, month })} />
+          <FilterSelect label="Year" value={browse.year} options={yearOptions} onChange={(year) => setBrowse({ ...browse, year })} />
           <label className="field">
             <span>Sort</span>
             <select className="select" value={browse.sort} onChange={(event) => setBrowse({ ...browse, sort: event.target.value })}>
@@ -108,6 +128,44 @@ function dateValue(value) {
   return Number.isFinite(time) ? time : 0;
 }
 
+function invoiceDateParts(value) {
+  const date = parseInvoiceDate(value);
+  if (!date) return { month: "", year: "" };
+  return {
+    month: `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`,
+    year: String(date.getUTCFullYear())
+  };
+}
+
+function uniqueDates(rows) {
+  return Array.from(new Set(rows.map((row) => row.invoice_date).filter(Boolean))).sort((a, b) => dateValue(b) - dateValue(a));
+}
+
+function uniqueMonths(rows) {
+  const values = Array.from(new Set(rows.map((row) => invoiceDateParts(row.invoice_date).month).filter(Boolean)));
+  return values.sort((a, b) => b.localeCompare(a)).map((value) => ({
+    value,
+    label: monthLabel(value)
+  }));
+}
+
+function uniqueYears(rows) {
+  return Array.from(new Set(rows.map((row) => invoiceDateParts(row.invoice_date).year).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
+}
+
+function parseInvoiceDate(value) {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function monthLabel(value) {
+  const [year, month] = String(value || "").split("-");
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, 1));
+  if (Number.isNaN(date.getTime())) return value;
+  return `${date.toLocaleString("en-US", { month: "long", timeZone: "UTC" })} ${year}`;
+}
+
 function textCompare(a, b) {
   return String(a || "").localeCompare(String(b || ""), undefined, { sensitivity: "base" });
 }
@@ -118,9 +176,11 @@ function FilterSelect({ label, value, options, onChange }) {
       <span>{label}</span>
       <select className="select" value={value} onChange={(event) => onChange(event.target.value)}>
         <option value="">All</option>
-        {options.map((option) => (
-          <option key={option} value={option}>{option}</option>
-        ))}
+        {options.map((option) => {
+          const optionValue = typeof option === "string" ? option : option.value;
+          const optionLabel = typeof option === "string" ? option : option.label;
+          return <option key={optionValue} value={optionValue}>{optionLabel}</option>;
+        })}
       </select>
     </label>
   );

@@ -19,6 +19,7 @@ const emptyLine = {
 export function InvoicesClient() {
   const [invoices, setInvoices] = useState([]);
   const [query, setQuery] = useState("");
+  const [dateFilters, setDateFilters] = useState({ invoiceDate: "", month: "", year: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showNew, setShowNew] = useState(false);
@@ -38,7 +39,6 @@ export function InvoicesClient() {
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return invoices;
     return invoices.filter((invoice) => [
       invoice.invoice_number,
       invoice.invoice_date,
@@ -46,8 +46,17 @@ export function InvoicesClient() {
       invoice.parse_status,
       invoice.vendors?.name,
       invoice.stores?.name
-    ].filter(Boolean).join(" ").toLowerCase().includes(needle));
-  }, [invoices, query]);
+    ].filter(Boolean).join(" ").toLowerCase().includes(needle)).filter((invoice) => {
+      const parts = invoiceDateParts(invoice.invoice_date);
+      const dateMatch = !dateFilters.invoiceDate || invoice.invoice_date === dateFilters.invoiceDate;
+      const monthMatch = !dateFilters.month || parts.month === dateFilters.month;
+      const yearMatch = !dateFilters.year || parts.year === dateFilters.year;
+      return dateMatch && monthMatch && yearMatch;
+    });
+  }, [invoices, query, dateFilters]);
+  const dateOptions = uniqueDates(invoices);
+  const monthOptions = uniqueMonths(invoices);
+  const yearOptions = uniqueYears(invoices);
 
   async function load() {
     setLoading(true);
@@ -114,7 +123,21 @@ export function InvoicesClient() {
             </button>
           </div>
         </div>
-        <input className="input" placeholder="Filter by invoice, vendor, store, status..." value={query} onChange={(event) => setQuery(event.target.value)} />
+        <div className="filter-grid filter-grid-wide">
+          <label className="field">
+            <span>Filter records</span>
+            <input className="input" placeholder="Invoice, vendor, store, status..." value={query} onChange={(event) => setQuery(event.target.value)} />
+          </label>
+          <FilterSelect label="Invoice date" value={dateFilters.invoiceDate} options={dateOptions} onChange={(invoiceDate) => setDateFilters({ ...dateFilters, invoiceDate })} />
+          <FilterSelect label="Month" value={dateFilters.month} options={monthOptions} onChange={(month) => setDateFilters({ ...dateFilters, month })} />
+          <FilterSelect label="Year" value={dateFilters.year} options={yearOptions} onChange={(year) => setDateFilters({ ...dateFilters, year })} />
+          <button className="button ghost" type="button" onClick={() => {
+            setQuery("");
+            setDateFilters({ invoiceDate: "", month: "", year: "" });
+          }}>
+            <RotateCcw size={16} /> Reset filters
+          </button>
+        </div>
         {error ? <div className="panel" style={{ color: "var(--danger)" }}>{error}</div> : null}
       </section>
 
@@ -221,6 +244,63 @@ function roundMoney(value) {
 
 function money(value) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value || 0));
+}
+
+function invoiceDateParts(value) {
+  const date = parseInvoiceDate(value);
+  if (!date) return { month: "", year: "" };
+  return {
+    month: `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`,
+    year: String(date.getUTCFullYear())
+  };
+}
+
+function uniqueDates(invoices) {
+  return Array.from(new Set(invoices.map((invoice) => invoice.invoice_date).filter(Boolean))).sort((a, b) => dateValue(b) - dateValue(a));
+}
+
+function uniqueMonths(invoices) {
+  return Array.from(new Set(invoices.map((invoice) => invoiceDateParts(invoice.invoice_date).month).filter(Boolean)))
+    .sort((a, b) => b.localeCompare(a))
+    .map((value) => ({ value, label: monthLabel(value) }));
+}
+
+function uniqueYears(invoices) {
+  return Array.from(new Set(invoices.map((invoice) => invoiceDateParts(invoice.invoice_date).year).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
+}
+
+function parseInvoiceDate(value) {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function dateValue(value) {
+  const time = new Date(`${value || ""}T00:00:00Z`).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function monthLabel(value) {
+  const [year, month] = String(value || "").split("-");
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, 1));
+  if (Number.isNaN(date.getTime())) return value;
+  return `${date.toLocaleString("en-US", { month: "long", timeZone: "UTC" })} ${year}`;
+}
+
+function FilterSelect({ label, value, options, onChange }) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <select className="select" value={value} onChange={(event) => onChange(event.target.value)}>
+        <option value="">All</option>
+        {options.map((option) => {
+          const optionValue = typeof option === "string" ? option : option.value;
+          const optionLabel = typeof option === "string" ? option : option.label;
+          return <option key={optionValue} value={optionValue}>{optionLabel}</option>;
+        })}
+      </select>
+    </label>
+  );
 }
 
 function sourceLabel(invoice) {
