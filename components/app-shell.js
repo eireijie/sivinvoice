@@ -26,13 +26,20 @@ export function AppShell({ children, eyebrow, title, action }) {
   const [businessName, setBusinessName] = useState("SIV");
   const [planId, setPlanId] = useState(null);
   const [sidebarWidth, setSidebarWidth] = useState(248);
+  const [sidebarLayout, setSidebarLayout] = useState("vertical");
 
   useEffect(() => {
     const savedWidth = Number(window.localStorage.getItem("siv-sidebar-width"));
     if (Number.isFinite(savedWidth)) setSidebarWidth(clampSidebarWidth(savedWidth));
+    const savedLayout = window.localStorage.getItem("siv-sidebar-layout");
+    if (savedLayout === "horizontal" || savedLayout === "vertical") setSidebarLayout(savedLayout);
     let mounted = true;
     function handleBusinessName(event) {
       setBusinessName(event.detail?.name?.trim() || "SIV");
+    }
+    function handleSidebarLayout(event) {
+      const nextLayout = event.detail?.layout;
+      if (nextLayout === "horizontal" || nextLayout === "vertical") setSidebarLayout(nextLayout);
     }
     async function loadBusinessName() {
       try {
@@ -48,10 +55,12 @@ export function AppShell({ children, eyebrow, title, action }) {
       }
     }
     window.addEventListener("siv:business-name", handleBusinessName);
+    window.addEventListener("siv:sidebar-layout", handleSidebarLayout);
     loadBusinessName();
     return () => {
       mounted = false;
       window.removeEventListener("siv:business-name", handleBusinessName);
+      window.removeEventListener("siv:sidebar-layout", handleSidebarLayout);
     };
   }, []);
 
@@ -77,10 +86,14 @@ export function AppShell({ children, eyebrow, title, action }) {
     window.addEventListener("pointerup", onPointerUp);
   }
 
-  const sidebarCompact = sidebarWidth <= 126;
+  const sidebarHorizontal = sidebarLayout === "horizontal";
+  const sidebarCompact = sidebarWidth <= 126 && !sidebarHorizontal;
+  const shellClassName = ["shell", sidebarCompact ? "sidebar-compact" : "", sidebarHorizontal ? "sidebar-horizontal" : ""]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <div className={sidebarCompact ? "shell sidebar-compact" : "shell"} style={{ "--sidebar-width": `${sidebarWidth}px` }}>
+    <div className={shellClassName} style={{ "--sidebar-width": `${sidebarWidth}px` }}>
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-mark">SIV</div>

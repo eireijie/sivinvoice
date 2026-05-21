@@ -289,6 +289,84 @@ textarea {
   transform: none;
 }
 
+.shell.sidebar-horizontal {
+  display: block;
+}
+
+.shell.sidebar-horizontal .sidebar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: auto;
+  min-height: 68px;
+  padding: 12px 22px;
+  border-right: 0;
+  border-bottom: 1px solid rgba(255,255,255,.1);
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.shell.sidebar-horizontal .sidebar::-webkit-scrollbar {
+  display: none;
+}
+
+.shell.sidebar-horizontal .brand {
+  flex: 0 0 auto;
+  margin: 0 12px 0 0;
+  max-width: 260px;
+}
+
+.shell.sidebar-horizontal .brand-mark {
+  display: grid;
+}
+
+.shell.sidebar-horizontal .brand span,
+.shell.sidebar-horizontal .nav a span,
+.shell.sidebar-horizontal .nav-tour-button span {
+  display: inline;
+}
+
+.shell.sidebar-horizontal .nav,
+.shell.sidebar-horizontal .nav-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  margin: 0;
+  padding: 0;
+}
+
+.shell.sidebar-horizontal .nav-bottom {
+  margin-left: auto;
+}
+
+.shell.sidebar-horizontal .nav a,
+.shell.sidebar-horizontal .nav-tour-button {
+  width: auto;
+  min-height: 42px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 999px;
+  padding: 0 13px;
+  white-space: nowrap;
+}
+
+.shell.sidebar-horizontal .nav a:hover,
+.shell.sidebar-horizontal .nav-tour-button:hover {
+  transform: translateY(-1px);
+}
+
+.shell.sidebar-horizontal .sidebar-resize-handle {
+  display: none;
+}
+
+.shell.sidebar-horizontal .main {
+  margin: 0 auto;
+}
+
 .nav {
   display: grid;
   gap: 5px;
@@ -3102,6 +3180,21 @@ tr:last-child td {
 .settings-password-form .settings-detail-card span {
   display: block;
   margin-top: 3px;
+}
+
+.settings-control-group {
+  display: grid;
+  gap: 14px;
+}
+
+.settings-control-group + .settings-control-group {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.settings-control-group h3 {
+  margin: 0 0 5px;
 }
 
 .theme-options {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, CreditCard, Lock, Moon, ReceiptText, Save, ShieldCheck, Sun, User, WalletCards } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CreditCard, Lock, Moon, PanelLeft, PanelTop, ReceiptText, Save, ShieldCheck, Sun, User, WalletCards } from "lucide-react";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 import { getPlan, PLAN_ORDER, PLANS, planStatusLabel } from "@/lib/plans";
 
@@ -18,6 +18,7 @@ export function SettingsClient({ workspace }) {
   const [firstName, setFirstName] = useState(workspace.user.firstName || "");
   const [lastName, setLastName] = useState(workspace.user.lastName || "");
   const [theme, setTheme] = useState("light");
+  const [sidebarLayout, setSidebarLayout] = useState("vertical");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState("");
@@ -35,6 +36,8 @@ export function SettingsClient({ workspace }) {
     const saved = window.localStorage.getItem("siv-theme") || "light";
     setTheme(saved);
     document.documentElement.dataset.theme = saved;
+    const savedLayout = window.localStorage.getItem("siv-sidebar-layout");
+    if (savedLayout === "horizontal" || savedLayout === "vertical") setSidebarLayout(savedLayout);
     const tab = new URLSearchParams(window.location.search).get("tab");
     if (sections.some((section) => section.id === tab)) setActive(tab);
   }, []);
@@ -166,6 +169,14 @@ export function SettingsClient({ workspace }) {
     window.localStorage.setItem("siv-theme", nextTheme);
     document.documentElement.dataset.theme = nextTheme;
     setMessage(`${nextTheme === "dark" ? "Dark" : "Light"} mode applied.`);
+    setError("");
+  }
+
+  function chooseSidebarLayout(nextLayout) {
+    setSidebarLayout(nextLayout);
+    window.localStorage.setItem("siv-sidebar-layout", nextLayout);
+    window.dispatchEvent(new CustomEvent("siv:sidebar-layout", { detail: { layout: nextLayout } }));
+    setMessage(`${nextLayout === "horizontal" ? "Horizontal navigation" : "Vertical sidebar"} applied.`);
     setError("");
   }
 
@@ -361,17 +372,41 @@ export function SettingsClient({ workspace }) {
               <h2>Appearance</h2>
               <p className="muted">Choose how SIV looks on this device.</p>
             </div>
-            <div className="theme-options">
-              <button className={theme === "light" ? "theme-card active" : "theme-card"} onClick={() => chooseTheme("light")} type="button">
-                <Sun size={20} />
-                <strong>Light mode</strong>
-                <span>Bright view for daytime review.</span>
-              </button>
-              <button className={theme === "dark" ? "theme-card active" : "theme-card"} onClick={() => chooseTheme("dark")} type="button">
-                <Moon size={20} />
-                <strong>Dark mode</strong>
-                <span>Lower glare for back-office use.</span>
-              </button>
+            <div className="settings-control-group">
+              <div>
+                <h3>Navigation layout</h3>
+                <p className="muted">Use the classic sidebar or switch to a top navigation bar for wider workstations.</p>
+              </div>
+              <div className="theme-options layout-options">
+                <button className={sidebarLayout === "vertical" ? "theme-card active" : "theme-card"} onClick={() => chooseSidebarLayout("vertical")} type="button">
+                  <PanelLeft size={20} />
+                  <strong>Vertical sidebar</strong>
+                  <span>Best for office desktops and daily invoice review.</span>
+                </button>
+                <button className={sidebarLayout === "horizontal" ? "theme-card active" : "theme-card"} onClick={() => chooseSidebarLayout("horizontal")} type="button">
+                  <PanelTop size={20} />
+                  <strong>Horizontal navigation</strong>
+                  <span>Moves the menu to the top so tables have more side room.</span>
+                </button>
+              </div>
+            </div>
+            <div className="settings-control-group">
+              <div>
+                <h3>Color mode</h3>
+                <p className="muted">Set the viewing style for this browser.</p>
+              </div>
+              <div className="theme-options">
+                <button className={theme === "light" ? "theme-card active" : "theme-card"} onClick={() => chooseTheme("light")} type="button">
+                  <Sun size={20} />
+                  <strong>Light mode</strong>
+                  <span>Bright view for daytime review.</span>
+                </button>
+                <button className={theme === "dark" ? "theme-card active" : "theme-card"} onClick={() => chooseTheme("dark")} type="button">
+                  <Moon size={20} />
+                  <strong>Dark mode</strong>
+                  <span>Lower glare for back-office use.</span>
+                </button>
+              </div>
             </div>
           </section>
         ) : null}
