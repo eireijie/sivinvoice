@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, FileStack, RotateCcw, UploadCloud } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileStack, Plus, RotateCcw, UploadCloud, X } from "lucide-react";
 import { ProcessingOverlay } from "@/components/processing-overlay";
 import { invoiceFileAccept } from "@/lib/invoiceFiles";
 
@@ -68,6 +68,20 @@ export function BatchesClient() {
     await load({ preserveMessage: true });
   }
 
+  function addSelectedFiles(fileList) {
+    const selected = Array.from(fileList || []);
+    if (!selected.length) return;
+    setFiles((current) => {
+      const existingKeys = new Set(current.map(fileKey));
+      const additions = selected.filter((file) => !existingKeys.has(fileKey(file)));
+      return [...current, ...additions];
+    });
+  }
+
+  function removeSelectedFile(targetFile) {
+    setFiles((current) => current.filter((file) => fileKey(file) !== fileKey(targetFile)));
+  }
+
   const fileCountLabel = files.length === 1 ? files[0].name : `${files.length} files selected`;
   const totalFileSize = files.reduce((sum, file) => sum + file.size, 0);
 
@@ -86,15 +100,18 @@ export function BatchesClient() {
             hidden
             multiple
             type="file"
-            onChange={(event) => setFiles(Array.from(event.target.files || []))}
+            onChange={(event) => {
+              addSelectedFiles(event.target.files);
+              event.target.value = "";
+            }}
           />
           <span>
             {files.length ? <CheckCircle2 size={42} /> : <FileStack size={38} />}
             <h2>{files.length ? fileCountLabel : "Select PDFs or invoice images"}</h2>
             <p className="muted">
               {files.length
-                ? `${files.length} file${files.length === 1 ? "" : "s"} ready · ${formatBytes(totalFileSize)} · click to change`
-                : "Upload scanned PDFs, JPGs, or PNGs at once. PDFs are split for batch review; images become invoice review records."}
+                ? `${files.length} file${files.length === 1 ? "" : "s"} ready · ${formatBytes(totalFileSize)} · tap to add more`
+                : "Upload scanned PDFs, JPGs, or PNGs. On phones, you can add files one at a time."}
             </p>
           </span>
         </label>
@@ -105,14 +122,35 @@ export function BatchesClient() {
                 <h2>Ready to upload</h2>
                 <p className="muted">{files.length} selected · {formatBytes(totalFileSize)}</p>
               </div>
-              <span className="badge"><CheckCircle2 size={14} /> Attached</span>
+              <div className="selected-files-actions">
+                <label className="button secondary compact">
+                  <input
+                    accept={invoiceFileAccept}
+                    hidden
+                    multiple
+                    type="file"
+                    onChange={(event) => {
+                      addSelectedFiles(event.target.files);
+                      event.target.value = "";
+                    }}
+                  />
+                  <Plus size={15} />
+                  Add more
+                </label>
+                <button className="button ghost compact" type="button" onClick={() => setFiles([])}>
+                  Clear all
+                </button>
+              </div>
             </div>
             <div className="selected-file-list">
               {files.map((file) => (
-                <span key={`${file.name}-${file.size}`}>
+                <span key={fileKey(file)}>
                   <FileStack size={14} />
-                  {file.name}
+                  <strong>{file.name}</strong>
                   <small>{formatBytes(file.size)}</small>
+                  <button type="button" onClick={() => removeSelectedFile(file)} aria-label={`Remove ${file.name}`}>
+                    <X size={13} />
+                  </button>
                 </span>
               ))}
             </div>
@@ -236,4 +274,8 @@ function formatBytes(bytes) {
   const units = ["B", "KB", "MB", "GB"];
   const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+function fileKey(file) {
+  return `${file.name}-${file.size}-${file.lastModified}`;
 }

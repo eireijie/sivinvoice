@@ -622,6 +622,18 @@ h2 {
   align-items: start;
 }
 
+.selected-files-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.button.compact {
+  min-height: 40px;
+  padding: 9px 12px;
+}
+
 .selected-files-header h2 {
   margin-bottom: 4px;
 }
@@ -1039,21 +1051,46 @@ tr:last-child td {
 
 .selected-file-list span {
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 10px;
   background: #fff;
   color: var(--ink);
-  padding: 7px 10px;
+  padding: 8px 9px;
   font-size: 13px;
   font-weight: 800;
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  max-width: 100%;
+}
+
+.selected-file-list strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(360px, 52vw);
 }
 
 .selected-file-list small {
   color: var(--muted);
   font-size: 12px;
   font-weight: 800;
+}
+
+.selected-file-list button {
+  border: 0;
+  border-radius: 999px;
+  background: rgba(9, 28, 44, .08);
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-grid;
+  height: 24px;
+  place-items: center;
+  width: 24px;
+}
+
+.selected-file-list button:hover {
+  background: rgba(220, 38, 38, .12);
+  color: var(--danger);
 }
 
 .batch-result-list {
