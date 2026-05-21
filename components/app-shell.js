@@ -85,15 +85,6 @@ export function AppShell({ children, eyebrow, title, action }) {
         <div className="brand">
           <div className="brand-mark">SIV</div>
           <span title={businessName}>{businessName}</span>
-          <button
-            className="sidebar-resize-handle"
-            type="button"
-            onPointerDown={startSidebarResize}
-            title="Drag to resize sidebar"
-            aria-label="Drag to resize sidebar"
-          >
-            <GripVertical size={18} />
-          </button>
         </div>
         <nav className="nav">
           {nav.filter((item) => !item.paidOnly || (planId && planId !== "free")).map((item) => {
@@ -124,6 +115,15 @@ export function AppShell({ children, eyebrow, title, action }) {
             );
           })}
         </nav>
+        <button
+          className="sidebar-resize-handle"
+          type="button"
+          onPointerDown={startSidebarResize}
+          title="Drag to resize sidebar"
+          aria-label="Drag to resize sidebar"
+        >
+          <GripVertical size={18} />
+        </button>
       </aside>
       <main className="main">
         <div className="topbar">
