@@ -20,7 +20,7 @@ function BatchUpgrade() {
       <span className="badge warn">Pro feature</span>
       <h2>Batch upload is included with Pro and Max.</h2>
       <p className="muted">
-        Free includes regular single-invoice uploads. Upgrade when you want to upload scanned invoice packets or multi-invoice PDFs.
+        Free includes regular single-invoice uploads. Upgrade when you want to upload scanned invoice packets, multi-invoice PDFs, or many invoice images at once.
       </p>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <Link className="button" href="/settings?tab=billing">
