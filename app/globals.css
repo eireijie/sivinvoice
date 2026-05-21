@@ -858,6 +858,297 @@ tr:last-child td {
   }
 }
 
+@media (max-width: 760px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  body {
+    background: var(--bg);
+  }
+
+  .shell {
+    display: block;
+  }
+
+  .sidebar {
+    border-bottom: 1px solid rgba(255,255,255,.1);
+    border-right: 0;
+    display: block;
+    padding: 12px;
+    position: static;
+  }
+
+  .brand {
+    margin: 0 0 10px;
+  }
+
+  .brand-mark {
+    height: 30px;
+    width: 30px;
+  }
+
+  .brand span {
+    font-size: 15px;
+  }
+
+  .sidebar-toggle {
+    display: none;
+  }
+
+  .nav,
+  .nav-bottom {
+    display: flex;
+    gap: 8px;
+    margin: 0;
+    overflow-x: auto;
+    padding: 0 0 3px;
+    scrollbar-width: none;
+  }
+
+  .nav-bottom {
+    margin-top: 8px;
+    padding-top: 0;
+  }
+
+  .nav::-webkit-scrollbar,
+  .nav-bottom::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav a,
+  .nav-tour-button {
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 999px;
+    flex: 0 0 auto;
+    font-size: 13px;
+    gap: 7px;
+    min-height: 38px;
+    padding: 0 12px;
+  }
+
+  .nav a:hover,
+  .nav-tour-button:hover {
+    transform: none;
+  }
+
+  .main {
+    padding: 14px 12px 24px;
+  }
+
+  .topbar {
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .topbar > div:first-child {
+    min-width: 0;
+  }
+
+  .auth-actions {
+    justify-content: flex-start;
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: .12em;
+  }
+
+  h1 {
+    font-size: 26px;
+    line-height: 1.05;
+  }
+
+  h2 {
+    font-size: 18px;
+  }
+
+  .panel,
+  .card,
+  .metric {
+    border-radius: 12px;
+    box-shadow: 0 10px 26px rgba(7, 24, 39, .06);
+  }
+
+  .panel {
+    padding: 14px;
+  }
+
+  .grid {
+    gap: 12px;
+  }
+
+  .button,
+  .input,
+  .select {
+    min-height: 44px;
+  }
+
+  .button {
+    border-radius: 10px;
+    white-space: normal;
+  }
+
+  .drop {
+    border-radius: 14px;
+    min-height: 150px;
+    padding: 22px 16px;
+  }
+
+  .file-drop h2 {
+    font-size: 18px;
+    margin: 4px 0;
+  }
+
+  .selected-files-header {
+    display: grid;
+    gap: 12px;
+  }
+
+  .selected-files-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+
+  .selected-file-list {
+    display: grid;
+  }
+
+  .selected-file-list span {
+    border-radius: 12px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    padding: 10px;
+    width: 100%;
+  }
+
+  .selected-file-list strong {
+    max-width: none;
+  }
+
+  .responsive-cards tbody {
+    gap: 10px;
+  }
+
+  .responsive-cards tr {
+    border-radius: 14px;
+    box-shadow: 0 10px 28px rgba(7, 24, 39, .06);
+    padding: 10px 12px;
+  }
+
+  .responsive-cards td {
+    font-size: 14px;
+    gap: 10px;
+    grid-template-columns: 92px minmax(0, 1fr);
+    padding: 7px 0;
+  }
+
+  .responsive-cards td::before {
+    font-size: 10px;
+  }
+
+  .responsive-cards td[data-label=""] {
+    display: block;
+    padding-top: 10px;
+  }
+
+  .responsive-cards td[data-label=""] .button,
+  .responsive-cards td[data-label=""] button {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .dashboard-invoice-list {
+    overflow: visible;
+  }
+
+  .dashboard-invoice-table,
+  .dashboard-invoice-table thead,
+  .dashboard-invoice-table tbody,
+  .dashboard-invoice-table tr,
+  .dashboard-invoice-table th,
+  .dashboard-invoice-table td {
+    display: block;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .dashboard-invoice-table thead {
+    display: none;
+  }
+
+  .dashboard-invoice-table tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  .dashboard-invoice-table tr {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 10px 28px rgba(7, 24, 39, .06);
+    padding: 10px 12px;
+  }
+
+  .dashboard-invoice-table td {
+    border: 0;
+    display: grid;
+    gap: 10px;
+    grid-template-columns: 92px minmax(0, 1fr);
+    padding: 7px 0;
+    white-space: normal;
+  }
+
+  .dashboard-invoice-table td::before {
+    color: var(--muted);
+    content: attr(data-label);
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  .dashboard-invoice-table td[data-label=""] {
+    display: block;
+  }
+
+  .dashboard-invoice-table .button {
+    width: 100%;
+  }
+
+  .review-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metric {
+    padding: 12px;
+  }
+
+  .metric strong {
+    font-size: 18px;
+  }
+
+  .viewer-top {
+    height: 54vh;
+    min-height: 280px;
+  }
+
+  .review-cell-product_name_raw,
+  .review-input-product_name_raw {
+    min-width: 240px;
+  }
+
+  .upload-dock {
+    bottom: 12px;
+    left: 12px;
+    max-width: none;
+    right: 12px;
+  }
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
