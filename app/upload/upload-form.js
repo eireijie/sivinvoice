@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AlertTriangle, CheckCircle2, FileText, UploadCloud } from "lucide-react";
 import { ProcessingOverlay } from "@/components/processing-overlay";
+import { invoiceFileAccept } from "@/lib/invoiceFiles";
 
 export function UploadForm() {
   const router = useRouter();
@@ -45,7 +46,7 @@ export function UploadForm() {
       <form className="grid" onSubmit={submit}>
         <label className={file ? "drop file-drop is-ready" : "drop file-drop"}>
           <input
-            accept="application/pdf,image/*"
+            accept={invoiceFileAccept}
             hidden
             type="file"
             onChange={(event) => setFile(event.target.files?.[0] || null)}

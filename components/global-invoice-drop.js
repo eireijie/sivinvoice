@@ -3,8 +3,7 @@
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, FileText, UploadCloud, X } from "lucide-react";
-
-const allowedTypes = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp", "image/tiff"]);
+import { getUnsupportedInvoiceFileMessage, isSupportedInvoiceFile } from "@/lib/invoiceFiles";
 
 export function GlobalInvoiceDrop() {
   const [mounted, setMounted] = useState(false);
@@ -43,9 +42,10 @@ export function GlobalInvoiceDrop() {
       depth = 0;
       setDragging(false);
       setError("");
-      const files = Array.from(event.dataTransfer.files || []).filter((file) => allowedTypes.has(file.type));
+      const droppedFiles = Array.from(event.dataTransfer.files || []);
+      const files = droppedFiles.filter(isSupportedInvoiceFile);
       if (!files.length) {
-        setError("Drop PDF, JPG, PNG, WEBP, or TIFF invoice files.");
+        setError(getUnsupportedInvoiceFileMessage(droppedFiles[0]));
         return;
       }
       uploadFiles(files);

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHash } from "node:crypto";
 import { parseInvoiceText } from "@/lib/aiParser";
 import { findInvoiceByFileHash, upsertParsedInvoice } from "@/lib/invoices";
+import { getUnsupportedInvoiceFileMessage, inferInvoiceMimeType } from "@/lib/invoiceFiles";
 import { runOcr } from "@/lib/ocr";
 import { assertStorageAvailable } from "@/lib/organization";
 
@@ -12,8 +13,9 @@ export async function POST(request) {
     if (!file || typeof file === "string") {
       return NextResponse.json({ error: "Upload a PDF or image invoice file." }, { status: 400 });
     }
-    if (!["application/pdf", "image/jpeg", "image/png", "image/webp", "image/tiff"].includes(file.type)) {
-      return NextResponse.json({ error: "Only PDF and image invoices are supported." }, { status: 400 });
+    const mimeType = inferInvoiceMimeType(file);
+    if (!mimeType) {
+      return NextResponse.json({ error: getUnsupportedInvoiceFileMessage(file) }, { status: 400 });
     }
 
     const fileBuffer = Buffer.from(await file.arrayBuffer());
@@ -29,9 +31,9 @@ export async function POST(request) {
     }
     await assertStorageAvailable(fileBuffer.length);
 
-    const ocrResult = await runOcr({ fileBuffer, mimeType: file.type, maxPages: 3 });
+    const ocrResult = await runOcr({ fileBuffer, mimeType, maxPages: 3 });
     const parsed = await parseInvoiceText(ocrResult.text);
-    const result = await upsertParsedInvoice({ file, fileBuffer, fileHash, ocrResult, parsed });
+    const result = await upsertParsedInvoice({ file, fileBuffer, fileHash, mimeType, ocrResult, parsed });
 
     return NextResponse.json(result);
   } catch (error) {
