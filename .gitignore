@@ -1,0 +1,14 @@
+node_modules
+.next
+.vercel
+dist
+coverage
+out
+
+.env
+.env.*
+!.env.example
+
+.DS_Store
+.claude/
+*.log
