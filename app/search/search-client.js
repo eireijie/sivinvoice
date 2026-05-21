@@ -10,8 +10,6 @@ export function SearchClient({ initialQuery }) {
   const [browse, setBrowse] = useState({
     text: initialQuery || "",
     vendor: "",
-    store: "",
-    size: "",
     invoiceDate: "",
     month: "",
     year: "",
@@ -51,18 +49,16 @@ export function SearchClient({ initialQuery }) {
     ].filter(Boolean).join(" ").toLowerCase();
     const textMatch = !browse.text.trim() || haystack.includes(browse.text.trim().toLowerCase());
     const vendorMatch = !browse.vendor || row.vendor_name === browse.vendor;
-    const storeMatch = !browse.store || row.store_name === browse.store;
-    const sizeMatch = !browse.size || row.size === browse.size;
     const dateParts = invoiceDateParts(row.invoice_date);
     const dateMatch = !browse.invoiceDate || row.invoice_date === browse.invoiceDate;
     const monthMatch = !browse.month || dateParts.month === browse.month;
     const yearMatch = !browse.year || dateParts.year === browse.year;
-    return textMatch && vendorMatch && storeMatch && sizeMatch && dateMatch && monthMatch && yearMatch;
+    return textMatch && vendorMatch && dateMatch && monthMatch && yearMatch;
   }).sort((a, b) => compareRows(a, b, browse.sort));
   const dateOptions = uniqueDates(allRows);
   const monthOptions = uniqueMonths(allRows);
   const yearOptions = uniqueYears(allRows);
-  const resetBrowse = { text: "", vendor: "", store: "", size: "", invoiceDate: "", month: "", year: "", sort: "recent" };
+  const resetBrowse = { text: "", vendor: "", invoiceDate: "", month: "", year: "", sort: "recent" };
 
   return (
     <div className="grid">
@@ -95,8 +91,6 @@ export function SearchClient({ initialQuery }) {
             />
           </label>
           <FilterSelect label="Vendor" value={browse.vendor} options={filters.vendors} onChange={(vendor) => setBrowse({ ...browse, vendor })} />
-          <FilterSelect label="Store" value={browse.store} options={filters.stores} onChange={(store) => setBrowse({ ...browse, store })} />
-          <FilterSelect label="Size" value={browse.size} options={filters.sizes} onChange={(size) => setBrowse({ ...browse, size })} />
           <FilterSelect label="Invoice date" value={browse.invoiceDate} options={dateOptions} onChange={(invoiceDate) => setBrowse({ ...browse, invoiceDate })} />
           <FilterSelect label="Month" value={browse.month} options={monthOptions} onChange={(month) => setBrowse({ ...browse, month })} />
           <FilterSelect label="Year" value={browse.year} options={yearOptions} onChange={(year) => setBrowse({ ...browse, year })} />
