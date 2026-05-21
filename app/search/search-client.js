@@ -7,7 +7,7 @@ import { ResultTable } from "@/components/result-table";
 export function SearchClient({ initialQuery }) {
   const [allRows, setAllRows] = useState([]);
   const [filters, setFilters] = useState({ vendors: [], stores: [], sizes: [] });
-  const [browse, setBrowse] = useState({ text: initialQuery || "", vendor: "", store: "", size: "" });
+  const [browse, setBrowse] = useState({ text: initialQuery || "", vendor: "", store: "", size: "", sort: "recent" });
   const [loadingBrowse, setLoadingBrowse] = useState(true);
   const [error, setError] = useState("");
 
@@ -45,7 +45,7 @@ export function SearchClient({ initialQuery }) {
     const storeMatch = !browse.store || row.store_name === browse.store;
     const sizeMatch = !browse.size || row.size === browse.size;
     return textMatch && vendorMatch && storeMatch && sizeMatch;
-  });
+  }).sort((a, b) => compareRows(a, b, browse.sort));
 
   return (
     <div className="grid">
@@ -61,7 +61,7 @@ export function SearchClient({ initialQuery }) {
           <button
             className="button ghost"
             type="button"
-            onClick={() => setBrowse({ text: "", vendor: "", store: "", size: "" })}
+            onClick={() => setBrowse({ text: "", vendor: "", store: "", size: "", sort: "recent" })}
           >
             <RotateCcw size={16} />
             Reset
@@ -80,11 +80,36 @@ export function SearchClient({ initialQuery }) {
           <FilterSelect label="Vendor" value={browse.vendor} options={filters.vendors} onChange={(vendor) => setBrowse({ ...browse, vendor })} />
           <FilterSelect label="Store" value={browse.store} options={filters.stores} onChange={(store) => setBrowse({ ...browse, store })} />
           <FilterSelect label="Size" value={browse.size} options={filters.sizes} onChange={(size) => setBrowse({ ...browse, size })} />
+          <label className="field">
+            <span>Sort</span>
+            <select className="select" value={browse.sort} onChange={(event) => setBrowse({ ...browse, sort: event.target.value })}>
+              <option value="recent">Most recent</option>
+              <option value="oldest">Oldest</option>
+              <option value="product">Product A-Z</option>
+              <option value="vendor">Vendor A-Z</option>
+            </select>
+          </label>
         </div>
         <ResultTable rows={browseRows} emptyLabel={loadingBrowse ? "Loading invoice line items..." : "No invoice line items match these filters."} />
       </section>
     </div>
   );
+}
+
+function compareRows(a, b, sort) {
+  if (sort === "oldest") return dateValue(a.invoice_date) - dateValue(b.invoice_date) || textCompare(a.product_name_raw, b.product_name_raw);
+  if (sort === "product") return textCompare(a.product_name_raw, b.product_name_raw) || dateValue(b.invoice_date) - dateValue(a.invoice_date);
+  if (sort === "vendor") return textCompare(a.vendor_name, b.vendor_name) || dateValue(b.invoice_date) - dateValue(a.invoice_date);
+  return dateValue(b.invoice_date) - dateValue(a.invoice_date) || textCompare(a.product_name_raw, b.product_name_raw);
+}
+
+function dateValue(value) {
+  const time = new Date(value || 0).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function textCompare(a, b) {
+  return String(a || "").localeCompare(String(b || ""), undefined, { sensitivity: "base" });
 }
 
 function FilterSelect({ label, value, options, onChange }) {
