@@ -3465,6 +3465,54 @@ body.siv-tour-open .shell {
   font-size: 26px;
 }
 
+.processing-state-card {
+  align-items: flex-start;
+  display: flex;
+  gap: 18px;
+  max-width: 760px;
+}
+
+.processing-state-icon {
+  align-items: center;
+  background: linear-gradient(135deg, var(--accent), #12c997);
+  border-radius: 14px;
+  color: #fff;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 56px;
+  justify-content: center;
+  width: 56px;
+}
+
+.processing-state-icon svg,
+.processing-inline-steps svg {
+  animation: processing-spin 1s linear infinite;
+}
+
+.processing-state-icon.failed {
+  background: #f59e0b;
+}
+
+.processing-inline-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.processing-inline-steps span {
+  align-items: center;
+  background: rgba(0, 155, 114, .1);
+  border: 1px solid rgba(0, 155, 114, .22);
+  border-radius: 999px;
+  color: var(--accent-dark);
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 900;
+  gap: 6px;
+  padding: 7px 10px;
+}
+
 .processing-steps {
   display: grid;
   gap: 10px;

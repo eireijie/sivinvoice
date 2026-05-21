@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Eye, EyeOff, Plus, Save, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Eye, EyeOff, Loader2, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 
 const emptyLine = {
   product_name_raw: "",
@@ -31,6 +31,9 @@ export function ReviewForm({ invoice }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [showViewer, setShowViewer] = useState(true);
+  const processingStarted = useRef(false);
+  const isProcessing = invoice.parse_status === "processing";
+  const processingFailed = invoice.parse_status === "processing_failed";
   const extractedTotal = roundMoney(lines.reduce((sum, line) => sum + Number(line.total_cost || 0), 0));
   const invoiceTotal = meta.invoice_total === "" ? null : Number(meta.invoice_total);
   const variance = invoiceTotal === null || Number.isNaN(invoiceTotal) ? null : roundMoney(extractedTotal - invoiceTotal);
@@ -57,6 +60,83 @@ export function ReviewForm({ invoice }) {
       return;
     }
     router.refresh();
+  }
+
+  useEffect(() => {
+    if (!isProcessing || processingStarted.current) return;
+    processingStarted.current = true;
+    let stopped = false;
+
+    async function runProcessing() {
+      fetch(`/api/invoices/${invoice.id}`, { method: "POST" }).catch(() => {});
+      const interval = window.setInterval(async () => {
+        try {
+          const response = await fetch(`/api/invoices/${invoice.id}`);
+          const payload = await response.json();
+          const status = payload.invoice?.parse_status;
+          if (!stopped && status && status !== "processing") {
+            window.clearInterval(interval);
+            router.refresh();
+          }
+        } catch {
+          // Keep polling. Temporary network misses should not strand the screen.
+        }
+      }, 2500);
+      window.setTimeout(() => {
+        window.clearInterval(interval);
+        if (!stopped) router.refresh();
+      }, 180000);
+    }
+
+    runProcessing();
+    return () => {
+      stopped = true;
+    };
+  }, [invoice.id, isProcessing, router]);
+
+  async function retryProcessing() {
+    setError("");
+    await fetch(`/api/invoices/${invoice.id}`, { method: "POST" });
+    router.refresh();
+  }
+
+  if (isProcessing || processingFailed) {
+    return (
+      <div className="grid">
+        <section className="panel processing-state-card">
+          <div className={processingFailed ? "processing-state-icon failed" : "processing-state-icon"}>
+            {processingFailed ? <AlertIcon /> : <Loader2 size={28} />}
+          </div>
+          <div>
+            <span className={processingFailed ? "badge warn" : "badge"}>{processingFailed ? "Needs retry" : "Processing"}</span>
+            <h2>{processingFailed ? "Invoice extraction stopped" : "Reading this invoice now"}</h2>
+            <p className="muted">
+              {processingFailed
+                ? "The original file was saved, but OCR or AI extraction failed. Retry processing, or open the original and enter the invoice manually."
+                : "The original file is already saved. You can leave this page; SIV will keep working and this screen will refresh when line items are ready."}
+            </p>
+            <div className="processing-inline-steps">
+              <span><Loader2 size={15} /> OCR</span>
+              <span>Line items</span>
+              <span>Review screen</span>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
+              {processingFailed ? (
+                <button className="button" type="button" onClick={retryProcessing}>
+                  <RotateCcw size={16} />
+                  Retry processing
+                </button>
+              ) : null}
+              {invoice.signed_url ? (
+                <a className="button secondary" href={invoice.signed_url} target="_blank" rel="noreferrer">
+                  Open original
+                </a>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      </div>
+    );
   }
 
   return (
@@ -153,6 +233,10 @@ export function ReviewForm({ invoice }) {
     copy[index] = { ...copy[index], [key]: value, bottle_name: key === "product_name_raw" ? value : copy[index].bottle_name };
     setLines(copy);
   }
+}
+
+function AlertIcon() {
+  return <span style={{ fontWeight: 900, fontSize: 24 }}>!</span>;
 }
 
 function Field({ label, value, onChange, type = "text" }) {
