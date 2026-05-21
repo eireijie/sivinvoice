@@ -7,10 +7,25 @@ import { Camera, ExternalLink, QrCode, X } from "lucide-react";
 export function PhoneUploadQr({ mode = "invoice" }) {
   const [open, setOpen] = useState(false);
   const [qr, setQr] = useState("");
-  const uploadUrl = useMemo(() => {
-    if (typeof window === "undefined") return "";
-    return `${window.location.origin}/mobile-upload?mode=${mode}`;
-  }, [mode]);
+  const [uploadUrl, setUploadUrl] = useState("");
+  const [error, setError] = useState("");
+  const normalizedMode = useMemo(() => mode === "batch" ? "batch" : "invoice", [mode]);
+
+  useEffect(() => {
+    if (!open) return;
+    setError("");
+    fetch("/api/upload-link", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mode: normalizedMode })
+    })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "Unable to create phone upload link.");
+        setUploadUrl(payload.url);
+      })
+      .catch((linkError) => setError(linkError.message));
+  }, [open, normalizedMode]);
 
   useEffect(() => {
     if (!open || !uploadUrl) return;
@@ -52,9 +67,9 @@ export function PhoneUploadQr({ mode = "invoice" }) {
               </button>
             </div>
             <div className="phone-qr-box">
-              {qr ? <img src={qr} alt="Phone upload QR code" /> : <QrCode size={64} />}
+              {error ? <p className="muted">{error}</p> : qr ? <img src={qr} alt="Phone upload QR code" /> : <QrCode size={64} />}
             </div>
-            <a className="button secondary" href={uploadUrl} target="_blank" rel="noreferrer">
+            <a className="button secondary" href={uploadUrl || "#"} target="_blank" rel="noreferrer" aria-disabled={!uploadUrl}>
               <ExternalLink size={16} />
               Open link
             </a>

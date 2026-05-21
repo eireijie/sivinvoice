@@ -704,10 +704,21 @@ h2 {
   max-width: 680px;
 }
 
+.mobile-upload-form {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 680px;
+}
+
 .mobile-upload-note {
   color: var(--muted);
   font-weight: 700;
   line-height: 1.5;
+}
+
+.mobile-upload-submit {
+  min-height: 52px;
+  width: 100%;
 }
 
 .table-wrap {

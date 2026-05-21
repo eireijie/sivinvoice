@@ -26,6 +26,8 @@ export async function proxy(request) {
     pathname === "/" ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
+    pathname.startsWith("/mobile-upload") ||
+    pathname.startsWith("/api/mobile-upload") ||
     pathname.startsWith("/_next") ||
     pathname === "/favicon.ico";
   if (!data.user && !publicPath) {
