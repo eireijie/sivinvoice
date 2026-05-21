@@ -31,6 +31,7 @@ export function ReviewForm({ invoice }) {
   const [lines, setLines] = useState((invoice.invoice_line_items || []).map(({ id, invoice_id, created_at, ...line }) => line));
   const [saving, setSaving] = useState(false);
   const [appendingOriginals, setAppendingOriginals] = useState(false);
+  const [rereadingOriginals, setRereadingOriginals] = useState(false);
   const [error, setError] = useState("");
   const [showViewer, setShowViewer] = useState(true);
   const [activeOriginalIndex, setActiveOriginalIndex] = useState(0);
@@ -124,6 +125,25 @@ export function ReviewForm({ invoice }) {
       return;
     }
     router.refresh();
+  }
+
+  async function rereadOriginalFiles() {
+    const confirmed = window.confirm("Re-read every saved original file and replace the extracted line-item table?");
+    if (!confirmed) return;
+    setRereadingOriginals(true);
+    setError("");
+    const response = await fetch(`/api/invoices/${invoice.id}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ force: true })
+    });
+    const payload = await response.json();
+    setRereadingOriginals(false);
+    if (!response.ok) {
+      setError(payload.error || "Unable to re-read originals.");
+      return;
+    }
+    window.location.reload();
   }
 
   if (isProcessing || processingFailed) {
@@ -247,6 +267,7 @@ export function ReviewForm({ invoice }) {
         </div>
         <div className="review-metrics">
           <Metric label="Recognized items" value={String(recognizedItemCount)} tone="neutral" />
+          <Metric label="Original files" value={String(originalFiles.length)} tone="neutral" />
           <Metric label="Extracted line total" value={money(extractedTotal)} tone="neutral" />
           <Metric label="Invoice total" value={invoiceTotal === null || Number.isNaN(invoiceTotal) ? "Not set" : money(invoiceTotal)} tone="neutral" />
           <Metric label="Difference" value={variance === null ? "Not checked" : money(variance)} tone={variance === null || Math.abs(variance) < 0.01 ? "ok" : "warn"} />
@@ -259,6 +280,10 @@ export function ReviewForm({ invoice }) {
               <button className="button secondary" onClick={() => setShowViewer(!showViewer)} type="button">
                 {showViewer ? <EyeOff size={16} /> : <Eye size={16} />}
                 {showViewer ? "Hide original" : "Show original"}
+              </button>
+              <button className="button secondary" disabled={rereadingOriginals || !originalFiles.length} onClick={rereadOriginalFiles} type="button">
+                <RotateCcw size={16} />
+                {rereadingOriginals ? "Reading..." : "Re-read originals"}
               </button>
               <button className="button secondary" onClick={() => setLines([...lines, { ...emptyLine }])} type="button">
                 <Plus size={16} /> Add line

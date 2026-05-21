@@ -33,10 +33,15 @@ export async function PATCH(request, { params }) {
   }
 }
 
-export async function POST(_request, { params }) {
+export async function POST(request, { params }) {
   try {
     const routeParams = await params;
-    const result = await processPendingInvoice(routeParams.id);
+    const contentType = request.headers.get("content-type") || "";
+    let body = {};
+    if (contentType.includes("application/json")) {
+      body = await request.json().catch(() => ({}));
+    }
+    const result = await processPendingInvoice(routeParams.id, { force: Boolean(body.force) });
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
