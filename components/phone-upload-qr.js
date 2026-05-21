@@ -67,7 +67,13 @@ export function PhoneUploadQr({ mode = "invoice" }) {
               </button>
             </div>
             <div className="phone-qr-box">
-              {error ? <p className="muted">{error}</p> : qr ? <img src={qr} alt="Phone upload QR code" /> : <QrCode size={64} />}
+              {error ? (
+                <div className="phone-qr-error">
+                  <span className="badge warn">Upgrade required</span>
+                  <p className="muted">{error}</p>
+                  <a className="button" href="/settings?tab=billing">View plans</a>
+                </div>
+              ) : qr ? <img src={qr} alt="Phone upload QR code" /> : <QrCode size={64} />}
             </div>
             <a className="button secondary" href={uploadUrl || "#"} target="_blank" rel="noreferrer" aria-disabled={!uploadUrl}>
               <ExternalLink size={16} />

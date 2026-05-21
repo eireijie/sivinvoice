@@ -674,6 +674,13 @@ h2 {
   width: 280px;
 }
 
+.phone-qr-error {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  text-align: center;
+}
+
 .mobile-upload-shell {
   background:
     radial-gradient(circle at 50% 0%, rgba(34, 197, 143, .16), transparent 22rem),
