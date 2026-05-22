@@ -6,7 +6,6 @@ import { AlertTriangle, CheckCircle2, FileText, Plus, UploadCloud, X } from "luc
 import { ProcessingOverlay } from "@/components/processing-overlay";
 import { optimizeInvoiceFiles } from "@/lib/clientInvoiceImages";
 import { invoiceFileAccept } from "@/lib/invoiceFiles";
-import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 
 const maxSingleInvoiceFiles = 30;
 
@@ -14,7 +13,6 @@ export function UploadForm() {
   const router = useRouter();
   const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
-  const [uploadStage, setUploadStage] = useState("");
   const [optimizing, setOptimizing] = useState(false);
   const [error, setError] = useState("");
   const [duplicate, setDuplicate] = useState(null);
@@ -45,37 +43,24 @@ export function UploadForm() {
     event.preventDefault();
     if (!files.length) return;
     setBusy(true);
-    setUploadStage("Uploading invoice");
     setError("");
     setDuplicate(null);
+    const body = new FormData();
+    files.forEach((file) => body.append("files", file));
     let payload = {};
     try {
-      const serverUpload = await uploadThroughServer(files);
-      if (serverUpload.ok) {
-        payload = serverUpload.payload;
-      } else if (shouldTryStorageFallback(serverUpload)) {
-        try {
-          payload = await uploadThroughStorage(files, setUploadStage);
-        } catch (fallbackError) {
-          setBusy(false);
-          setUploadStage("");
-          setError(`Upload failed after retry. First: ${serverUpload.message}. Retry: ${fallbackError?.message || "Unknown storage upload error."}`);
-          return;
-        }
-      } else {
-        setBusy(false);
-        setUploadStage("");
-        setError(serverUpload.message);
+      const response = await fetch("/api/upload", { method: "POST", body });
+      payload = await response.json().catch(() => ({}));
+      setBusy(false);
+      if (!response.ok) {
+        setError(payload.error || `Upload failed (${response.status}).`);
         return;
       }
     } catch (uploadError) {
       setBusy(false);
-      setUploadStage("");
       setError(uploadError?.message || "Upload did not finish. Check your connection, then try again with the same files.");
       return;
     }
-    setBusy(false);
-    setUploadStage("");
     if (payload.duplicate) {
       setDuplicate(payload);
       return;
@@ -88,8 +73,8 @@ export function UploadForm() {
       <ProcessingOverlay
         active={busy || optimizing}
         title="Saving invoice upload"
-        detail={optimizing ? "Optimizing images before upload" : uploadStage || (files.length ? `Saving ${files.length} file${files.length === 1 ? "" : "s"} and adding it to the queue` : "Uploading invoice")}
-        steps={optimizing ? ["Shrinking phone photo", "Preparing upload", "Keeping OCR quality"] : ["Checking duplicates", "Uploading originals", "Adding to processing queue", "Opening review status"]}
+        detail={optimizing ? "Optimizing images before upload" : files.length ? `Saving ${files.length} file${files.length === 1 ? "" : "s"} and adding it to the queue` : "Uploading invoice"}
+        steps={optimizing ? ["Shrinking phone photo", "Preparing upload", "Keeping OCR quality"] : ["Checking duplicates", "Saving originals", "Adding to processing queue", "Opening review status"]}
       />
       <form className="grid" onSubmit={submit}>
         <label className={files.length ? "drop file-drop is-ready" : "drop file-drop"}>
@@ -191,102 +176,4 @@ function formatBytes(bytes) {
   const units = ["B", "KB", "MB", "GB"];
   const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
-}
-
-async function uploadThroughServer(files) {
-  const body = new FormData();
-  files.forEach((file) => body.append("files", file));
-  try {
-    const response = await fetch("/api/upload", { method: "POST", body });
-    const payload = await response.json().catch(() => ({}));
-    if (response.ok) return { ok: true, payload };
-    return {
-      ok: false,
-      status: response.status,
-      payload,
-      message: uploadErrorMessage(response, payload)
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      status: 0,
-      payload: {},
-      networkError: true,
-      message: error?.message || "Upload did not finish."
-    };
-  }
-}
-
-async function uploadThroughStorage(files, setUploadStage) {
-  setUploadStage("Preparing large upload");
-  const fileHash = await fingerprintFiles(files);
-  const signResponse = await fetch("/api/upload/sign", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      fileHash,
-      files: files.map((file) => ({ name: file.name, type: file.type, size: file.size, lastModified: file.lastModified }))
-    })
-  });
-  const signPayload = await signResponse.json().catch(() => ({}));
-  if (!signResponse.ok) throw new Error(uploadErrorMessage(signResponse, signPayload));
-  if (signPayload.duplicate) return signPayload;
-
-  const supabase = getSupabaseBrowser();
-  for (const [index, file] of files.entries()) {
-    const upload = signPayload.uploads[index];
-    setUploadStage(`Uploading page ${index + 1} of ${files.length}`);
-    const result = await supabase.storage
-      .from(signPayload.bucket)
-      .uploadToSignedUrl(upload.path, upload.token, file, { contentType: upload.mimeType || file.type });
-    if (result.error) throw result.error;
-  }
-
-  setUploadStage("Creating invoice record");
-  const completeResponse = await fetch("/api/upload/complete", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ sessionToken: signPayload.sessionToken })
-  });
-  const payload = await completeResponse.json().catch(() => ({}));
-  if (!completeResponse.ok) throw new Error(uploadErrorMessage(completeResponse, payload));
-  return payload;
-}
-
-function shouldTryStorageFallback(result) {
-  if (result.ok) return false;
-  const message = String(result.message || result.payload?.error || "").toLowerCase();
-  if (result.status === 400 || result.status === 401 || result.status === 402 || result.status === 403) return false;
-  if (message.includes("unsupported") || message.includes("storage limit") || message.includes("sign in")) return false;
-  return true;
-}
-
-async function fingerprintFiles(files) {
-  const parts = [];
-  for (const [index, file] of files.entries()) {
-    const sample = await sampleFile(file);
-    parts.push(`${index}:${file.name}:${file.type}:${file.size}:${file.lastModified}:${sample}`);
-  }
-  const encoded = new TextEncoder().encode(parts.join("|"));
-  const digest = await crypto.subtle.digest("SHA-256", encoded);
-  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-async function sampleFile(file) {
-  const sampleSize = Math.min(64 * 1024, file.size || 0);
-  if (!sampleSize) return "";
-  const first = await file.slice(0, sampleSize).arrayBuffer();
-  const lastStart = Math.max(0, file.size - sampleSize);
-  const last = await file.slice(lastStart, file.size).arrayBuffer();
-  const combined = new Uint8Array(first.byteLength + last.byteLength);
-  combined.set(new Uint8Array(first), 0);
-  combined.set(new Uint8Array(last), first.byteLength);
-  const digest = await crypto.subtle.digest("SHA-256", combined);
-  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-function uploadErrorMessage(response, payload) {
-  if (payload?.error) return payload.error;
-  if (response.status === 413) return "The selected files are too large for the upload gateway. Try smaller photos or upload fewer pages at once.";
-  return `Upload failed (${response.status}). Try again, or upload fewer pages at once.`;
 }
