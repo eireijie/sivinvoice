@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { createHash } from "node:crypto";
 import { parseInvoiceText } from "@/lib/aiParser";
 import { createInvoiceBatch, findBatchByFileHash, logDuplicateBatchUpload } from "@/lib/batches";
-import { createPendingInvoiceUpload, findInvoiceByFileHash, upsertParsedInvoice } from "@/lib/invoices";
+import { createPendingInvoiceUpload, findInvoiceByFileHash, processNextQueuedInvoices, upsertParsedInvoice } from "@/lib/invoices";
 import { getUnsupportedInvoiceFileMessage, inferInvoiceMimeType } from "@/lib/invoiceFiles";
 import { runOcr } from "@/lib/ocr";
 import { assertStorageAvailable } from "@/lib/organization";
@@ -47,6 +48,7 @@ async function handleInvoiceUpload({ formData, organizationId }) {
     mimeType: prepared[0].mimeType,
     storageFiles: prepared.map((item) => ({ fileName: item.file.name, buffer: item.buffer, mimeType: item.mimeType }))
   });
+  after(() => processNextQueuedInvoices({ limit: 1 }).catch((error) => console.error("Queue worker failed", error)));
   return NextResponse.json(result);
 }
 

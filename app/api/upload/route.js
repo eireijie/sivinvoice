@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { createHash } from "node:crypto";
-import { createPendingInvoiceUpload, findInvoiceByFileHash } from "@/lib/invoices";
+import { createPendingInvoiceUpload, findInvoiceByFileHash, processNextQueuedInvoices } from "@/lib/invoices";
 import { getUnsupportedInvoiceFileMessage, inferInvoiceMimeType } from "@/lib/invoiceFiles";
 import { assertStorageAvailable } from "@/lib/organization";
 
@@ -53,6 +54,7 @@ export async function POST(request) {
         mimeType: prepared.mimeType
       }))
     });
+    after(() => processNextQueuedInvoices({ limit: 1 }).catch((error) => console.error("Queue worker failed", error)));
 
     return NextResponse.json(result);
   } catch (error) {
