@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, ChevronLeft, ChevronRight, Folder, GitMerge, Plus, ReceiptText, RotateCcw, Search, X } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Folder, GitMerge, Plus, ReceiptText, RotateCcw, Search, Trash2, X } from "lucide-react";
 
 const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
@@ -78,6 +78,29 @@ export function VendorHistoryClient({ vendors }) {
     setMergeOpen(false);
     setMergeSourceId("");
     setMessage("Vendor folders merged.");
+  }
+
+  async function deleteVendor() {
+    if (!selectedVendor) return;
+    const confirmed = window.confirm(`Delete the ${selectedVendor.name} folder? The invoices stay saved, but they will no longer be assigned to this vendor.`);
+    if (!confirmed) return;
+
+    setBusy("delete");
+    setMessage("");
+    setError("");
+    const response = await fetch(`/api/vendors/${selectedVendor.id}`, { method: "DELETE" });
+    const payload = await response.json();
+    setBusy("");
+    if (!response.ok) {
+      setError(payload.error || "Unable to delete vendor folder.");
+      return;
+    }
+    const remaining = preparedVendors.filter((vendor) => vendor.id !== selectedVendor.id);
+    setVendorRows((current) => current.filter((vendor) => vendor.id !== selectedVendor.id));
+    setSelectedVendorId(remaining[0]?.id || "");
+    setMergeOpen(false);
+    setMergeSourceId("");
+    setMessage("Vendor folder deleted. Invoices were kept.");
   }
 
   return (
@@ -157,6 +180,10 @@ export function VendorHistoryClient({ vendors }) {
                 <button className="button secondary" disabled={mergeOptions.length === 0} type="button" onClick={() => setMergeOpen(true)}>
                   <GitMerge size={16} />
                   Merge
+                </button>
+                <button className="button danger" disabled={busy === "delete"} type="button" onClick={deleteVendor}>
+                  <Trash2 size={16} />
+                  {busy === "delete" ? "Deleting..." : "Delete"}
                 </button>
                 <button className="button ghost" type="button" onClick={() => setFilters(resetFilters)}>
                   <RotateCcw size={16} />
