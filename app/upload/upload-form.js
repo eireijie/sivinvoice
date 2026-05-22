@@ -6,6 +6,7 @@ import { AlertTriangle, CheckCircle2, FileText, Plus, UploadCloud, X } from "luc
 import { ProcessingOverlay } from "@/components/processing-overlay";
 import { optimizeInvoiceFiles } from "@/lib/clientInvoiceImages";
 import { invoiceFileAccept } from "@/lib/invoiceFiles";
+import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 
 const maxSingleInvoiceFiles = 30;
 
@@ -13,6 +14,7 @@ export function UploadForm() {
   const router = useRouter();
   const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [uploadStage, setUploadStage] = useState("");
   const [optimizing, setOptimizing] = useState(false);
   const [error, setError] = useState("");
   const [duplicate, setDuplicate] = useState(null);
@@ -43,21 +45,60 @@ export function UploadForm() {
     event.preventDefault();
     if (!files.length) return;
     setBusy(true);
+    setUploadStage("Preparing secure upload");
     setError("");
     setDuplicate(null);
-    const body = new FormData();
-    files.forEach((file) => body.append("files", file));
     let payload = {};
     try {
-      const response = await fetch("/api/upload", { method: "POST", body });
-      payload = await response.json().catch(() => ({}));
+      const fileHash = await hashFiles(files);
+      const signResponse = await fetch("/api/upload/sign", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          fileHash,
+          files: files.map((file) => ({ name: file.name, type: file.type, size: file.size, lastModified: file.lastModified }))
+        })
+      });
+      const signPayload = await signResponse.json().catch(() => ({}));
+      if (!signResponse.ok) {
+        setBusy(false);
+        setUploadStage("");
+        setError(uploadErrorMessage(signResponse, signPayload));
+        return;
+      }
+      if (signPayload.duplicate) {
+        setBusy(false);
+        setUploadStage("");
+        setDuplicate(signPayload);
+        return;
+      }
+
+      const supabase = getSupabaseBrowser();
+      for (const [index, file] of files.entries()) {
+        const upload = signPayload.uploads[index];
+        setUploadStage(`Uploading page ${index + 1} of ${files.length}`);
+        const result = await supabase.storage
+          .from(signPayload.bucket)
+          .uploadToSignedUrl(upload.path, upload.token, file, { contentType: upload.mimeType || file.type });
+        if (result.error) throw result.error;
+      }
+
+      setUploadStage("Creating invoice record");
+      const completeResponse = await fetch("/api/upload/complete", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sessionToken: signPayload.sessionToken })
+      });
+      payload = await completeResponse.json().catch(() => ({}));
       setBusy(false);
-      if (!response.ok) {
-        setError(payload.error || "Upload failed.");
+      setUploadStage("");
+      if (!completeResponse.ok) {
+        setError(uploadErrorMessage(completeResponse, payload));
         return;
       }
     } catch {
       setBusy(false);
+      setUploadStage("");
       setError("Upload did not finish. Check your connection, then try again with the same files.");
       return;
     }
@@ -73,8 +114,8 @@ export function UploadForm() {
       <ProcessingOverlay
         active={busy || optimizing}
         title="Saving invoice upload"
-        detail={optimizing ? "Optimizing images before upload" : files.length ? `Saving ${files.length} file${files.length === 1 ? "" : "s"} and adding it to the queue` : "Uploading invoice"}
-        steps={optimizing ? ["Shrinking phone photo", "Preparing upload", "Keeping OCR quality"] : ["Checking duplicates", "Saving originals", "Adding to processing queue", "Opening review status"]}
+        detail={optimizing ? "Optimizing images before upload" : uploadStage || (files.length ? `Saving ${files.length} file${files.length === 1 ? "" : "s"} and adding it to the queue` : "Uploading invoice")}
+        steps={optimizing ? ["Shrinking phone photo", "Preparing upload", "Keeping OCR quality"] : ["Checking duplicates", "Uploading originals", "Adding to processing queue", "Opening review status"]}
       />
       <form className="grid" onSubmit={submit}>
         <label className={files.length ? "drop file-drop is-ready" : "drop file-drop"}>
@@ -176,4 +217,28 @@ function formatBytes(bytes) {
   const units = ["B", "KB", "MB", "GB"];
   const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+async function hashFiles(files) {
+  const chunks = [];
+  let total = 0;
+  for (const file of files) {
+    const buffer = await file.arrayBuffer();
+    chunks.push(new Uint8Array(buffer));
+    total += buffer.byteLength;
+  }
+  const combined = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  const digest = await crypto.subtle.digest("SHA-256", combined);
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function uploadErrorMessage(response, payload) {
+  if (payload?.error) return payload.error;
+  if (response.status === 413) return "The selected files are too large for the upload gateway. Try smaller photos or upload fewer pages at once.";
+  return `Upload failed (${response.status}). Try again, or upload fewer pages at once.`;
 }
