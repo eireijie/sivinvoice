@@ -1589,7 +1589,7 @@ tr:last-child td {
 }
 
 .viewer iframe,
-.viewer img {
+.viewer > img {
   width: 100%;
   height: calc(100% - 58px);
   border: 0;
@@ -1598,8 +1598,20 @@ tr:last-child td {
 }
 
 .viewer:has(.original-file-tabs) iframe,
-.viewer:has(.original-file-tabs) img {
+.viewer:has(.original-file-tabs) > img {
   height: calc(100% - 106px);
+}
+
+.viewer:has(.image-viewer-controls) iframe,
+.viewer:has(.image-viewer-controls) > img,
+.viewer:has(.image-viewer-controls) .image-viewer-stage {
+  height: calc(100% - 106px);
+}
+
+.viewer:has(.image-viewer-controls):has(.original-file-tabs) iframe,
+.viewer:has(.image-viewer-controls):has(.original-file-tabs) > img,
+.viewer:has(.image-viewer-controls):has(.original-file-tabs) .image-viewer-stage {
+  height: calc(100% - 154px);
 }
 
 .viewer-toolbar {
@@ -1642,6 +1654,64 @@ tr:last-child td {
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.image-viewer-controls {
+  height: 48px;
+  padding: 8px 10px;
+  background: #111827;
+  border-bottom: 1px solid rgba(255,255,255,.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.image-viewer-controls button,
+.image-viewer-controls a {
+  width: 34px;
+  height: 32px;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 7px;
+  background: rgba(255,255,255,.08);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background .15s ease, transform .15s ease;
+}
+
+.image-viewer-controls button:hover,
+.image-viewer-controls a:hover {
+  background: rgba(255,255,255,.16);
+  transform: translateY(-1px);
+}
+
+.image-viewer-controls strong {
+  min-width: 52px;
+  color: #fff;
+  font-size: 13px;
+  text-align: center;
+}
+
+.image-viewer-stage {
+  width: 100%;
+  overflow: auto;
+  background:
+    linear-gradient(45deg, rgba(255,255,255,.04) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255,255,255,.04) 25%, transparent 25%),
+    #2b2d2a;
+  background-size: 28px 28px;
+  display: grid;
+  place-items: center;
+}
+
+.image-viewer-stage img {
+  max-width: 92%;
+  max-height: 92%;
+  object-fit: contain;
+  transform-origin: center center;
+  transition: transform .16s ease;
 }
 
 .original-file-tabs {

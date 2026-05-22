@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Eye, EyeOff, FileText, Loader2, Plus, RotateCcw, Save, Trash2, UploadCloud } from "lucide-react";
+import { Download, Eye, EyeOff, FileText, Loader2, Plus, Printer, RotateCcw, RotateCw, Save, Trash2, UploadCloud, ZoomIn, ZoomOut } from "lucide-react";
 import { invoiceFileAccept } from "@/lib/invoiceFiles";
 
 const emptyLine = {
@@ -38,6 +38,7 @@ export function ReviewForm({ invoice }) {
   const [error, setError] = useState("");
   const [showViewer, setShowViewer] = useState(true);
   const [activeOriginalIndex, setActiveOriginalIndex] = useState(0);
+  const [imageView, setImageView] = useState({ zoom: 1, rotation: 0 });
   const processingStarted = useRef(false);
   const originalFiles = invoice.original_files?.length
     ? invoice.original_files
@@ -45,6 +46,7 @@ export function ReviewForm({ invoice }) {
       ? [{ fileName: invoice.original_file_name || "Original invoice", mimeType: invoice.mime_type, signedUrl: invoice.signed_url, index: 1 }]
       : [];
   const activeOriginal = originalFiles[Math.min(activeOriginalIndex, Math.max(originalFiles.length - 1, 0))];
+  const activeOriginalIsImage = activeOriginal?.mimeType?.startsWith("image/");
   const isQueued = invoice.parse_status === "queued";
   const isProcessing = invoice.parse_status === "processing";
   const processingFailed = invoice.parse_status === "processing_failed";
@@ -208,6 +210,41 @@ export function ReviewForm({ invoice }) {
     router.push("/invoices");
   }
 
+  function updateImageView(update) {
+    setImageView((current) => {
+      const next = typeof update === "function" ? update(current) : { ...current, ...update };
+      return {
+        zoom: Math.min(3, Math.max(0.5, Math.round(Number(next.zoom || 1) * 100) / 100)),
+        rotation: ((Number(next.rotation || 0) % 360) + 360) % 360
+      };
+    });
+  }
+
+  function printActiveImage() {
+    if (!activeOriginal?.signedUrl) return;
+    const printWindow = window.open("", "_blank", "noopener,noreferrer");
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>${escapeHtml(activeOriginal.fileName || "Invoice image")}</title>
+          <style>
+            body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #fff; }
+            img { max-width: 100%; max-height: 100vh; object-fit: contain; transform: rotate(${imageView.rotation}deg); }
+          </style>
+        </head>
+        <body>
+          <img src="${activeOriginal.signedUrl}" alt="Invoice image" onload="window.print(); window.close();" />
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  }
+
   if (isQueued || isProcessing || processingFailed) {
     return (
       <div className="grid">
@@ -285,6 +322,29 @@ export function ReviewForm({ invoice }) {
                   <a className="button secondary" href={activeOriginal.signedUrl} target="_blank" rel="noreferrer">Open original</a>
                 </div>
               </div>
+              {activeOriginalIsImage ? (
+                <div className="image-viewer-controls">
+                  <button type="button" onClick={() => updateImageView((view) => ({ ...view, zoom: view.zoom - 0.15 }))} aria-label="Zoom out">
+                    <ZoomOut size={16} />
+                  </button>
+                  <strong>{Math.round(imageView.zoom * 100)}%</strong>
+                  <button type="button" onClick={() => updateImageView((view) => ({ ...view, zoom: view.zoom + 0.15 }))} aria-label="Zoom in">
+                    <ZoomIn size={16} />
+                  </button>
+                  <button type="button" onClick={() => updateImageView((view) => ({ ...view, rotation: view.rotation + 90 }))} aria-label="Rotate image">
+                    <RotateCw size={16} />
+                  </button>
+                  <button type="button" onClick={() => updateImageView({ zoom: 1, rotation: 0 })} aria-label="Reset image view">
+                    <RotateCcw size={16} />
+                  </button>
+                  <button type="button" onClick={printActiveImage} aria-label="Print image">
+                    <Printer size={16} />
+                  </button>
+                  <a href={activeOriginal.signedUrl} download={activeOriginal.fileName || "invoice-image"} aria-label="Download image">
+                    <Download size={16} />
+                  </a>
+                </div>
+              ) : null}
               {originalFiles.length > 1 ? (
                 <div className="original-file-tabs">
                   {originalFiles.map((file, index) => (
@@ -299,8 +359,18 @@ export function ReviewForm({ invoice }) {
                   ))}
                 </div>
               ) : null}
-              {activeOriginal.mimeType?.startsWith("image/")
-                ? <img src={activeOriginal.signedUrl} alt="Original invoice" />
+              {activeOriginalIsImage
+                ? (
+                  <div className="image-viewer-stage">
+                    <img
+                      src={activeOriginal.signedUrl}
+                      alt="Original invoice"
+                      style={{
+                        transform: `scale(${imageView.zoom}) rotate(${imageView.rotation}deg)`
+                      }}
+                    />
+                  </div>
+                )
                 : <iframe src={activeOriginal.signedUrl} title="Original invoice" />}
             </>
           ) : (
@@ -475,4 +545,14 @@ function roundMoney(value) {
 
 function money(value) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value || 0));
+}
+
+function escapeHtml(value) {
+  return String(value || "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#039;"
+  })[character]);
 }
