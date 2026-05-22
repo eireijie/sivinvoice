@@ -2,11 +2,13 @@
 
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { AlertTriangle, CheckCircle2, FileText, UploadCloud, X } from "lucide-react";
 import { optimizeInvoiceFiles } from "@/lib/clientInvoiceImages";
 import { getUnsupportedInvoiceFileMessage, isSupportedInvoiceFile } from "@/lib/invoiceFiles";
 
 export function GlobalInvoiceDrop() {
+  const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [jobs, setJobs] = useState([]);
@@ -49,7 +51,7 @@ export function GlobalInvoiceDrop() {
         setError(getUnsupportedInvoiceFileMessage(droppedFiles[0]));
         return;
       }
-      uploadFiles(files);
+      uploadFiles(files, { groupAsOneInvoice: pathname?.startsWith("/upload") });
     }
 
     window.addEventListener("dragenter", onDragEnter);
@@ -62,10 +64,36 @@ export function GlobalInvoiceDrop() {
       window.removeEventListener("dragleave", onDragLeave);
       window.removeEventListener("drop", onDrop);
     };
-  }, []);
+  }, [pathname]);
 
-  async function uploadFiles(files) {
+  async function uploadFiles(files, { groupAsOneInvoice = false } = {}) {
     const optimizedFiles = await optimizeInvoiceFiles(files);
+    if (groupAsOneInvoice && optimizedFiles.length > 1) {
+      const job = {
+        id: crypto.randomUUID(),
+        file: { name: `${optimizedFiles.length} files`, size: optimizedFiles.reduce((sum, file) => sum + file.size, 0) },
+        status: "uploading",
+        message: "Uploading as one invoice"
+      };
+      setJobs([job]);
+      const body = new FormData();
+      optimizedFiles.forEach((file) => body.append("files", file));
+      try {
+        const response = await fetch("/api/upload", { method: "POST", body });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "Upload failed.");
+        setJobs([{
+          ...job,
+          status: payload.duplicate ? "duplicate" : "done",
+          message: payload.duplicate ? `Duplicate invoice ${payload.invoiceNumber || ""}`.trim() : "Queued for review",
+          invoiceId: payload.invoiceId
+        }]);
+      } catch (uploadError) {
+        setJobs([{ ...job, status: "error", message: uploadError.message }]);
+      }
+      return;
+    }
+
     const nextJobs = optimizedFiles.map((file) => ({
       id: crypto.randomUUID(),
       file,
