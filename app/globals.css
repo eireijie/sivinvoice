@@ -83,6 +83,19 @@
   color: var(--ink);
 }
 
+:root[data-theme="dark"] tbody td {
+  background: rgba(13, 38, 56, .88);
+}
+
+:root[data-theme="dark"] .dashboard-invoice-list {
+  background: var(--panel);
+}
+
+:root[data-theme="dark"] .dashboard-invoice-table td {
+  background: rgba(13, 38, 56, .88);
+  color: var(--ink);
+}
+
 :root[data-theme="dark"] .badge {
   background: rgba(34, 197, 143, .22);
   color: #8ff5d0;
@@ -897,7 +910,7 @@ tr:last-child td {
   overflow: visible;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--panel);
 }
 
 .dashboard-invoice-table {
