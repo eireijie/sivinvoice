@@ -222,27 +222,55 @@ export function ReviewForm({ invoice }) {
 
   function printActiveImage() {
     if (!activeOriginal?.signedUrl) return;
-    const printWindow = window.open("", "_blank", "noopener,noreferrer");
-    if (!printWindow) {
-      window.print();
-      return;
-    }
-    printWindow.document.write(`
+    const frame = document.createElement("iframe");
+    frame.style.position = "fixed";
+    frame.style.right = "0";
+    frame.style.bottom = "0";
+    frame.style.width = "0";
+    frame.style.height = "0";
+    frame.style.border = "0";
+    frame.setAttribute("aria-hidden", "true");
+    document.body.appendChild(frame);
+
+    const documentContent = `
       <!doctype html>
       <html>
         <head>
           <title>${escapeHtml(activeOriginal.fileName || "Invoice image")}</title>
           <style>
-            body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #fff; }
-            img { max-width: 100%; max-height: 100vh; object-fit: contain; transform: rotate(${imageView.rotation}deg); }
+            @page { margin: 0.25in; }
+            html, body { margin: 0; min-height: 100%; background: #fff; }
+            body { display: grid; place-items: center; }
+            img {
+              max-width: 100%;
+              max-height: 100vh;
+              object-fit: contain;
+              transform: rotate(${imageView.rotation}deg);
+              transform-origin: center center;
+            }
           </style>
         </head>
         <body>
-          <img src="${activeOriginal.signedUrl}" alt="Invoice image" onload="window.print(); window.close();" />
+          <img src="${escapeHtml(activeOriginal.signedUrl)}" alt="Invoice image" />
         </body>
       </html>
-    `);
-    printWindow.document.close();
+    `;
+
+    const frameDocument = frame.contentWindow?.document;
+    if (!frameDocument) {
+      frame.remove();
+      return;
+    }
+    frameDocument.open();
+    frameDocument.write(documentContent);
+    frameDocument.close();
+    const image = frameDocument.querySelector("img");
+    image.onload = () => {
+      frame.contentWindow?.focus();
+      frame.contentWindow?.print();
+      window.setTimeout(() => frame.remove(), 1000);
+    };
+    image.onerror = () => frame.remove();
   }
 
   if (isQueued || isProcessing || processingFailed) {
@@ -366,7 +394,8 @@ export function ReviewForm({ invoice }) {
                       src={activeOriginal.signedUrl}
                       alt="Original invoice"
                       style={{
-                        transform: `scale(${imageView.zoom}) rotate(${imageView.rotation}deg)`
+                        width: `${Math.round(imageView.zoom * 92)}%`,
+                        transform: `rotate(${imageView.rotation}deg)`
                       }}
                     />
                   </div>

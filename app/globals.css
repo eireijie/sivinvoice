@@ -1703,12 +1703,14 @@ tr:last-child td {
     #2b2d2a;
   background-size: 28px 28px;
   display: grid;
-  place-items: center;
+  align-items: start;
+  justify-items: center;
+  padding: 18px;
 }
 
 .image-viewer-stage img {
-  max-width: 92%;
-  max-height: 92%;
+  max-width: none;
+  max-height: none;
   object-fit: contain;
   transform-origin: center center;
   transition: transform .16s ease;
