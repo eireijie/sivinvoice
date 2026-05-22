@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/jobs/process-next?limit=3",
+      "schedule": "* * * * *"
+    }
+  ]
+}

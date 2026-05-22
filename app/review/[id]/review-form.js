@@ -45,6 +45,7 @@ export function ReviewForm({ invoice }) {
       ? [{ fileName: invoice.original_file_name || "Original invoice", mimeType: invoice.mime_type, signedUrl: invoice.signed_url, index: 1 }]
       : [];
   const activeOriginal = originalFiles[Math.min(activeOriginalIndex, Math.max(originalFiles.length - 1, 0))];
+  const isQueued = invoice.parse_status === "queued";
   const isProcessing = invoice.parse_status === "processing";
   const processingFailed = invoice.parse_status === "processing_failed";
   const extractedTotal = roundMoney(lines.reduce((sum, line) => sum + Number(line.total_cost || 0), 0));
@@ -80,8 +81,7 @@ export function ReviewForm({ invoice }) {
     processingStarted.current = true;
     let stopped = false;
 
-    async function runProcessing() {
-      fetch(`/api/invoices/${invoice.id}`, { method: "POST" }).catch(() => {});
+    async function watchProcessing() {
       const interval = window.setInterval(async () => {
         try {
           const response = await fetch(`/api/invoices/${invoice.id}`);
@@ -101,11 +101,33 @@ export function ReviewForm({ invoice }) {
       }, 180000);
     }
 
-    runProcessing();
+    watchProcessing();
     return () => {
       stopped = true;
     };
   }, [invoice.id, isProcessing, router]);
+
+  useEffect(() => {
+    if (!isQueued) return;
+    let stopped = false;
+    const interval = window.setInterval(async () => {
+      try {
+        const response = await fetch(`/api/invoices/${invoice.id}`);
+        const payload = await response.json();
+        const status = payload.invoice?.parse_status;
+        if (!stopped && status && status !== "queued") {
+          window.clearInterval(interval);
+          window.location.reload();
+        }
+      } catch {
+        // Keep polling while the queue worker catches up.
+      }
+    }, 5000);
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+    };
+  }, [invoice.id, isQueued]);
 
   useEffect(() => {
     if (!invoice.source_batch_id) return;
@@ -186,31 +208,33 @@ export function ReviewForm({ invoice }) {
     router.push("/invoices");
   }
 
-  if (isProcessing || processingFailed) {
+  if (isQueued || isProcessing || processingFailed) {
     return (
       <div className="grid">
         <section className="panel processing-state-card">
           <div className={processingFailed ? "processing-state-icon failed" : "processing-state-icon"}>
-            {processingFailed ? <AlertIcon /> : <Loader2 size={28} />}
+            {processingFailed ? <AlertIcon /> : isQueued ? <ClockIcon /> : <Loader2 size={28} />}
           </div>
           <div>
-            <span className={processingFailed ? "badge warn" : "badge"}>{processingFailed ? "Needs retry" : "Processing"}</span>
-            <h2>{processingFailed ? "Invoice extraction stopped" : "Reading this invoice now"}</h2>
+            <span className={processingFailed ? "badge warn" : "badge"}>{processingFailed ? "Needs retry" : isQueued ? "Queued" : "Processing"}</span>
+            <h2>{processingFailed ? "Invoice extraction stopped" : isQueued ? "Waiting in processing queue" : "Reading this invoice now"}</h2>
             <p className="muted">
               {processingFailed
                 ? "The original file was saved, but OCR or AI extraction failed. Retry processing, or open the original and enter the invoice manually."
-                : "The original file is already saved. You can leave this page; SIV will keep working and this screen will refresh when line items are ready."}
+                : isQueued
+                  ? "The original file is saved. SIV will process queued invoices automatically in the background, oldest and higher-priority jobs first."
+                  : "The original file is already saved. You can leave this page; SIV will keep working and this screen will refresh when line items are ready."}
             </p>
             <div className="processing-inline-steps">
-              <span><Loader2 size={15} /> OCR</span>
+              <span>{isQueued ? "Queued" : <><Loader2 size={15} /> OCR</>}</span>
               <span>Line items</span>
               <span>Review screen</span>
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
-              {processingFailed ? (
+              {processingFailed || isQueued ? (
                 <button className="button" type="button" onClick={retryProcessing}>
                   <RotateCcw size={16} />
-                  Retry processing
+                  {processingFailed ? "Retry processing" : "Process now"}
                 </button>
               ) : null}
               {invoice.signed_url ? (
@@ -421,6 +445,10 @@ function MiniStat({ label, value }) {
 
 function AlertIcon() {
   return <span style={{ fontWeight: 900, fontSize: 24 }}>!</span>;
+}
+
+function ClockIcon() {
+  return <span style={{ fontWeight: 900, fontSize: 20 }}>...</span>;
 }
 
 function Field({ label, value, onChange, type = "text" }) {

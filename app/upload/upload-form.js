@@ -59,9 +59,9 @@ export function UploadForm() {
     <>
       <ProcessingOverlay
         active={busy || optimizing}
-        title="Extracting invoice line items"
-        detail={optimizing ? "Optimizing images before upload" : files.length ? `Processing ${files.length} file${files.length === 1 ? "" : "s"} as one invoice` : "Uploading and processing invoice"}
-        steps={optimizing ? ["Shrinking phone photo", "Preparing upload", "Keeping OCR quality"] : ["Checking duplicates", "Running OCR", "Parsing product rows", "Preparing review screen"]}
+        title="Saving invoice upload"
+        detail={optimizing ? "Optimizing images before upload" : files.length ? `Saving ${files.length} file${files.length === 1 ? "" : "s"} and adding it to the queue` : "Uploading invoice"}
+        steps={optimizing ? ["Shrinking phone photo", "Preparing upload", "Keeping OCR quality"] : ["Checking duplicates", "Saving originals", "Adding to processing queue", "Opening review status"]}
       />
       <form className="grid" onSubmit={submit}>
         <label className={files.length ? "drop file-drop is-ready" : "drop file-drop"}>
@@ -142,7 +142,7 @@ export function UploadForm() {
         <div>
           <button className="button" disabled={!files.length || busy || optimizing}>
             <UploadCloud size={16} />
-            {busy ? "Processing invoice..." : optimizing ? "Optimizing..." : "Upload as One Invoice"}
+            {busy ? "Queueing invoice..." : optimizing ? "Optimizing..." : "Upload as One Invoice"}
           </button>
         </div>
       </form>
