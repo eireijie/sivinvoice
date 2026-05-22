@@ -1785,6 +1785,148 @@ tr:last-child td {
   grid-template-columns: minmax(260px, 1.4fr) repeat(auto-fit, minmax(150px, 1fr));
 }
 
+.vendor-history {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.vendor-folder-panel,
+.vendor-invoice-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.vendor-folder-panel {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+}
+
+.vendor-panel-header,
+.vendor-detail-header {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.vendor-panel-header h2,
+.vendor-detail-header h2 {
+  margin: 0;
+}
+
+.vendor-folder-list {
+  display: grid;
+  gap: 9px;
+  max-height: min(62vh, 620px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.vendor-folder {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 92%, var(--accent-soft));
+  color: var(--ink);
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+  text-align: left;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease, background .16s ease;
+}
+
+.vendor-folder:hover,
+.vendor-folder.active {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--line));
+  background: color-mix(in srgb, var(--accent-soft) 72%, var(--panel));
+  box-shadow: var(--shadow-accent);
+  transform: translateY(-1px);
+}
+
+.vendor-folder-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+
+.vendor-folder-copy {
+  min-width: 0;
+}
+
+.vendor-folder-copy strong,
+.vendor-folder-copy small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vendor-folder-copy small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  margin-top: 3px;
+}
+
+.vendor-date-tools {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(6, minmax(120px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.vendor-search-field {
+  min-width: 0;
+}
+
+.input-with-icon {
+  position: relative;
+}
+
+.input-with-icon svg {
+  color: var(--muted);
+  left: 13px;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.input-with-icon .input {
+  padding-left: 40px;
+  width: 100%;
+}
+
+.vendor-invoice-table table {
+  min-width: 900px;
+}
+
+.small-text {
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.empty-state {
+  color: var(--muted);
+  display: grid;
+  gap: 7px;
+  justify-items: center;
+  padding: 28px;
+  text-align: center;
+}
+
+.empty-state strong {
+  color: var(--ink);
+}
+
 .selected-file-list {
   display: flex;
   flex-wrap: wrap;
@@ -2028,8 +2170,19 @@ tr:last-child td {
   .settings-grid,
   .billing-hero,
   .launch-steps,
-  .batch-progress-grid {
+  .batch-progress-grid,
+  .vendor-history,
+  .vendor-date-tools {
     grid-template-columns: 1fr;
+  }
+
+  .vendor-folder-panel {
+    position: static;
+    max-height: none;
+  }
+
+  .vendor-folder-list {
+    max-height: 320px;
   }
 
   .batch-guide-card,
