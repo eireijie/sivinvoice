@@ -167,6 +167,12 @@ textarea {
   min-width: 0;
 }
 
+.shell:not(.sidebar-horizontal) {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .sidebar-resizing {
   cursor: col-resize;
   user-select: none;
@@ -186,6 +192,13 @@ textarea {
   display: flex;
   flex-direction: column;
   transition: padding .18s ease;
+}
+
+.shell:not(.sidebar-horizontal) .sidebar {
+  position: relative;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .brand {
@@ -425,6 +438,12 @@ textarea {
   max-width: 1560px;
   width: 100%;
   min-width: 0;
+}
+
+.shell:not(.sidebar-horizontal) .main {
+  height: 100vh;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .topbar {
@@ -2282,12 +2301,16 @@ tr:last-child td {
 
 @media (max-width: 900px) {
   .shell {
+    height: auto;
     grid-template-columns: 1fr;
+    min-height: 100vh;
+    overflow: visible;
   }
 
   .sidebar {
     position: static;
     height: auto;
+    overflow: visible;
   }
 
   .nav {
@@ -2360,6 +2383,8 @@ tr:last-child td {
   }
 
   .main {
+    height: auto;
+    overflow: visible;
     padding: 18px;
   }
 
