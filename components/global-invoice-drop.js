@@ -80,8 +80,8 @@ export function GlobalInvoiceDrop() {
       optimizedFiles.forEach((file) => body.append("files", file));
       try {
         const response = await fetch("/api/upload", { method: "POST", body });
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || "Upload failed.");
+        const payload = await readUploadResponse(response, "/api/upload");
+        if (!response.ok) throw new Error(payload.error);
         setJobs([{
           ...job,
           status: payload.duplicate ? "duplicate" : "done",
@@ -107,8 +107,8 @@ export function GlobalInvoiceDrop() {
       body.append("file", job.file);
       try {
         const response = await fetch("/api/upload", { method: "POST", body });
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || "Upload failed.");
+        const payload = await readUploadResponse(response, "/api/upload");
+        if (!response.ok) throw new Error(payload.error);
         setJobs((current) => current.map((item) => item.id === job.id ? {
           ...item,
           status: payload.duplicate ? "duplicate" : "done",
@@ -185,4 +185,24 @@ function UploadJob({ job }) {
 
 function hasFiles(event) {
   return Array.from(event.dataTransfer?.types || []).includes("Files");
+}
+
+async function readUploadResponse(response, label) {
+  const text = await response.text().catch(() => "");
+  let payload = {};
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = { raw: text };
+    }
+  }
+  if (!response.ok) {
+    const raw = String(payload.raw || "").replace(/\s+/g, " ").trim();
+    return {
+      ...payload,
+      error: payload.error || (raw ? `${label} failed (${response.status}): ${raw.slice(0, 180)}` : `${label} failed (${response.status}).`)
+    };
+  }
+  return payload;
 }

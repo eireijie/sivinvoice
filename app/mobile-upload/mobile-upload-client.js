@@ -46,10 +46,10 @@ export function MobileUploadClient({ mode, token }) {
     let payload = {};
     try {
       const response = await fetch("/api/mobile-upload", { method: "POST", body });
-      payload = await response.json().catch(() => ({}));
+      payload = await readUploadResponse(response, "/api/mobile-upload");
       setBusy(false);
       if (!response.ok) {
-        setError(payload.error || "Upload failed.");
+        setError(payload.error);
         return;
       }
     } catch {
@@ -171,4 +171,24 @@ function formatBytes(bytes) {
   const units = ["B", "KB", "MB", "GB"];
   const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+async function readUploadResponse(response, label) {
+  const text = await response.text().catch(() => "");
+  let payload = {};
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = { raw: text };
+    }
+  }
+  if (!response.ok) {
+    const raw = String(payload.raw || "").replace(/\s+/g, " ").trim();
+    return {
+      ...payload,
+      error: payload.error || (raw ? `${label} failed (${response.status}): ${raw.slice(0, 180)}` : `${label} failed (${response.status}).`)
+    };
+  }
+  return payload;
 }
