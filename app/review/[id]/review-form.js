@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Eye, EyeOff, FileText, Loader2, Plus, RotateCcw, Save, Trash2, UploadCloud } from "lucide-react";
@@ -32,6 +33,8 @@ export function ReviewForm({ invoice }) {
   const [saving, setSaving] = useState(false);
   const [appendingOriginals, setAppendingOriginals] = useState(false);
   const [rereadingOriginals, setRereadingOriginals] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [batchContext, setBatchContext] = useState(null);
   const [error, setError] = useState("");
   const [showViewer, setShowViewer] = useState(true);
   const [activeOriginalIndex, setActiveOriginalIndex] = useState(0);
@@ -104,6 +107,24 @@ export function ReviewForm({ invoice }) {
     };
   }, [invoice.id, isProcessing, router]);
 
+  useEffect(() => {
+    if (!invoice.source_batch_id) return;
+    let stopped = false;
+    async function loadBatchContext() {
+      try {
+        const response = await fetch(`/api/batches/${invoice.source_batch_id}`);
+        const payload = await response.json();
+        if (!stopped && response.ok) setBatchContext(payload.batch);
+      } catch {
+        // Batch context is helpful, but invoice review still works without it.
+      }
+    }
+    loadBatchContext();
+    return () => {
+      stopped = true;
+    };
+  }, [invoice.source_batch_id]);
+
   async function retryProcessing() {
     setError("");
     await fetch(`/api/invoices/${invoice.id}`, { method: "POST" });
@@ -144,6 +165,25 @@ export function ReviewForm({ invoice }) {
       return;
     }
     window.location.reload();
+  }
+
+  async function deleteCurrentInvoice() {
+    const confirmed = window.confirm(`Delete invoice ${meta.invoice_number || invoice.invoice_number || "record"}? This removes the invoice record and line items.`);
+    if (!confirmed) return;
+    setDeleting(true);
+    setError("");
+    const response = await fetch(`/api/invoices/${invoice.id}`, { method: "DELETE" });
+    const payload = await response.json();
+    setDeleting(false);
+    if (!response.ok) {
+      setError(payload.error || "Unable to delete invoice.");
+      return;
+    }
+    if (invoice.source_batch_id) {
+      router.push(`/batches/${invoice.source_batch_id}`);
+      return;
+    }
+    router.push("/invoices");
   }
 
   if (isProcessing || processingFailed) {
@@ -187,6 +227,9 @@ export function ReviewForm({ invoice }) {
 
   return (
     <div className="grid">
+      {invoice.source_batch_id ? (
+        <BatchReviewBanner invoice={invoice} batch={batchContext} />
+      ) : null}
       {showViewer ? (
         <section className="viewer viewer-top">
           {activeOriginal?.signedUrl ? (
@@ -285,6 +328,10 @@ export function ReviewForm({ invoice }) {
                 <RotateCcw size={16} />
                 {rereadingOriginals ? "Reading..." : "Re-read originals"}
               </button>
+              <button className="button ghost" disabled={deleting} onClick={deleteCurrentInvoice} type="button">
+                <Trash2 size={16} />
+                {deleting ? "Deleting..." : "Delete invoice"}
+              </button>
               <button className="button secondary" onClick={() => setLines([...lines, { ...emptyLine }])} type="button">
                 <Plus size={16} /> Add line
               </button>
@@ -337,6 +384,39 @@ export function ReviewForm({ invoice }) {
     copy[index] = { ...copy[index], [key]: value, bottle_name: key === "product_name_raw" ? value : copy[index].bottle_name };
     setLines(copy);
   }
+}
+
+function BatchReviewBanner({ invoice, batch }) {
+  const detected = [...(batch?.batch_detected_invoices || [])].sort((a, b) => (a.page_start || 0) - (b.page_start || 0));
+  const currentIndex = detected.findIndex((item) => item.created_invoice_id === invoice.id);
+  const createdCount = detected.filter((item) => item.created_invoice_id).length;
+  const duplicateCount = detected.filter((item) => item.status === "duplicate").length;
+  const readyCount = detected.filter((item) => !item.created_invoice_id && item.status !== "duplicate").length;
+
+  return (
+    <section className="panel batch-return-card">
+      <div>
+        <span className="badge">Batch invoice {currentIndex >= 0 ? currentIndex + 1 : "?"}{detected.length ? ` of ${detected.length}` : ""}</span>
+        <h2>{batch?.original_file_name || "Batch upload"}</h2>
+        <p className="muted">Review this invoice, then return to the batch checklist to continue with the remaining detected invoices.</p>
+      </div>
+      <div className="batch-return-stats">
+        <MiniStat label="Created" value={createdCount} />
+        <MiniStat label="Ready" value={readyCount} />
+        <MiniStat label="Duplicates" value={duplicateCount} />
+      </div>
+      <Link className="button secondary" href={`/batches/${invoice.source_batch_id}`}>Back to batch</Link>
+    </section>
+  );
+}
+
+function MiniStat({ label, value }) {
+  return (
+    <div>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
 }
 
 function AlertIcon() {

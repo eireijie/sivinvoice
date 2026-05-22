@@ -41,6 +41,10 @@ export function BatchDetailClient({ batchId }) {
   if (!batch) return <div className="panel muted">Loading batch...</div>;
 
   const detected = [...(batch.batch_detected_invoices || [])].sort((a, b) => (a.page_start || 0) - (b.page_start || 0));
+  const createdCount = detected.filter((item) => item.status === "created").length;
+  const duplicateCount = detected.filter((item) => item.status === "duplicate").length;
+  const readyCount = detected.filter((item) => !item.created_invoice_id && item.status !== "duplicate").length;
+  const nextReady = detected.find((item) => !item.created_invoice_id && item.status !== "duplicate");
 
   return (
     <div className="grid">
@@ -54,23 +58,37 @@ export function BatchDetailClient({ batchId }) {
           </div>
           {batch.signed_url ? <a className="button secondary" href={batch.signed_url} target="_blank" rel="noreferrer">Open batch PDF</a> : null}
         </div>
-        <div className="duplicate-warning">
+        <div className="batch-progress-grid">
+          <Mini label="Ready to create" value={String(readyCount)} />
+          <Mini label="Created" value={String(createdCount)} />
+          <Mini label="Duplicates" value={String(duplicateCount)} />
+          <Mini label="Detected total" value={String(detected.length)} />
+        </div>
+        <div className="batch-guide-card">
           <FileText size={20} />
           <div>
-            <strong>Batch page setting</strong>
-            <p className="muted">This batch was optimized for {batch.page_count || 0} OCR page{batch.page_count === 1 ? "" : "s"}. For new batches, choose 2-30 pages before upload based on the scan size.</p>
+            <strong>Batch checklist</strong>
+            <p className="muted">Create each ready invoice, review it, then return here. Created and duplicate invoices stay linked so you do not have to guess what is left.</p>
           </div>
+          {nextReady ? (
+            <button className="button" disabled={Boolean(busyId)} onClick={() => createInvoice(nextReady.id)} type="button">
+              {busyId === nextReady.id ? <Loader2 size={16} /> : <FileText size={16} />}
+              {busyId === nextReady.id ? "Creating..." : "Open next ready invoice"}
+            </button>
+          ) : null}
         </div>
       </section>
 
-      <div className="grid cols-2">
-        {detected.map((item) => {
+      <div className="batch-detected-list">
+        {detected.map((item, index) => {
           const parsed = item.parsed_payload || {};
           const lines = Array.isArray(parsed.line_items) ? parsed.line_items : [];
+          const stateClass = item.status === "duplicate" ? "duplicate" : item.created_invoice_id ? "created" : "ready";
           return (
-            <section className="panel grid" key={item.id}>
+            <section className={`panel grid batch-detected-card ${stateClass}`} key={item.id}>
               <div className="topbar" style={{ marginBottom: 0 }}>
                 <div>
+                  <span className="badge">Invoice {index + 1} of {detected.length}</span>
                   <h2>{item.invoice_number || "Unknown invoice"}</h2>
                   <p className="muted" style={{ margin: 0 }}>Pages {item.page_start || "?"}-{item.page_end || "?"}</p>
                 </div>
@@ -99,7 +117,7 @@ export function BatchDetailClient({ batchId }) {
                   <AlertTriangle size={20} />
                   <div>
                     <strong>Duplicate invoice found</strong>
-                    <p className="muted">This invoice number and date already exist, so SIV did not create another copy.</p>
+                    <p className="muted">This invoice number and date already exist. No second copy was created.</p>
                     <Link className="button secondary" href={`/review/${item.created_invoice_id}`}>
                       Open existing invoice
                     </Link>

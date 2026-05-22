@@ -1376,6 +1376,92 @@ tr:last-child td {
   background: #fff8e6;
 }
 
+.batch-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.batch-guide-card,
+.batch-return-card {
+  border: 1px solid rgba(0, 155, 114, .24);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(34, 197, 143, .14), transparent 20rem),
+    var(--panel);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.batch-guide-card > svg {
+  color: var(--accent-dark);
+  flex: 0 0 auto;
+}
+
+.batch-guide-card p,
+.batch-return-card p {
+  margin: 4px 0 0;
+}
+
+.batch-detected-list {
+  display: grid;
+  gap: 14px;
+}
+
+.batch-detected-card {
+  border-left: 5px solid var(--line);
+}
+
+.batch-detected-card.ready {
+  border-left-color: var(--accent);
+}
+
+.batch-detected-card.created {
+  border-left-color: #22c55e;
+}
+
+.batch-detected-card.duplicate {
+  border-left-color: #f59e0b;
+}
+
+.batch-return-card > div:first-child {
+  min-width: 0;
+}
+
+.batch-return-stats {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.batch-return-stats div {
+  min-width: 86px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255,255,255,.72);
+  padding: 8px 10px;
+}
+
+.batch-return-stats span,
+.batch-return-stats strong {
+  display: block;
+}
+
+.batch-return-stats span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.batch-return-stats strong {
+  color: var(--ink);
+  font-size: 18px;
+}
+
 .review-metrics {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -1856,8 +1942,25 @@ tr:last-child td {
   .settings-plan-grid,
   .settings-grid,
   .billing-hero,
-  .launch-steps {
+  .launch-steps,
+  .batch-progress-grid {
     grid-template-columns: 1fr;
+  }
+
+  .batch-guide-card,
+  .batch-return-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .batch-return-stats {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .batch-return-stats div {
+    flex: 1;
+    min-width: 0;
   }
 
   .settings-grid .panel:first-child {
