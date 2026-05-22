@@ -5,12 +5,14 @@ import { CheckCircle2, FileText, Plus, UploadCloud, X } from "lucide-react";
 import { optimizeInvoiceFiles } from "@/lib/clientInvoiceImages";
 import { invoiceFileAccept } from "@/lib/invoiceFiles";
 import { ProcessingOverlay } from "@/components/processing-overlay";
+import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 
 const maxSingleInvoiceFiles = 30;
 
 export function MobileUploadClient({ mode, token }) {
   const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [uploadStage, setUploadStage] = useState("");
   const [optimizing, setOptimizing] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -37,24 +39,25 @@ export function MobileUploadClient({ mode, token }) {
     event.preventDefault();
     if (!files.length) return;
     setBusy(true);
+    setUploadStage(mode === "invoice" ? "Preparing secure upload" : "Uploading files");
     setError("");
     setMessage("");
-    const body = new FormData();
-    body.append("token", token);
-    body.append("mode", mode);
-    files.forEach((file) => body.append("files", file));
     let payload = {};
     try {
-      const response = await fetch("/api/mobile-upload", { method: "POST", body });
-      payload = await readUploadResponse(response, "/api/mobile-upload");
+      payload = mode === "invoice"
+        ? await uploadInvoiceDirectly(files, token, setUploadStage)
+        : await uploadBatchThroughServer(files, token);
+    } catch (uploadError) {
       setBusy(false);
-      if (!response.ok) {
-        setError(payload.error);
-        return;
-      }
-    } catch {
-      setBusy(false);
-      setError("Upload did not finish. Check the connection, then try again.");
+      setUploadStage("");
+      setError(uploadError?.message || "Upload did not finish. Check the connection, then try again.");
+      return;
+    }
+    setBusy(false);
+    setUploadStage("");
+    if (payload.duplicate) {
+      setFiles([]);
+      setMessage(`Duplicate invoice ${payload.invoiceNumber || ""}. The manager can open the existing invoice in SIV.`.trim());
       return;
     }
     setFiles([]);
@@ -79,8 +82,8 @@ export function MobileUploadClient({ mode, token }) {
       <ProcessingOverlay
         active={busy || optimizing}
         title={optimizing ? "Preparing photos" : "Uploading files"}
-        detail={optimizing ? "Optimizing phone images before upload" : "Saving into SIV"}
-        steps={optimizing ? ["Shrinking photos", "Keeping OCR quality", "Preparing upload"] : ["Uploading originals", "Checking duplicates", "Saving to vault"]}
+        detail={optimizing ? "Optimizing phone images before upload" : uploadStage || "Saving into SIV"}
+        steps={optimizing ? ["Shrinking photos", "Keeping OCR quality", "Preparing upload"] : ["Checking duplicates", "Uploading originals", "Saving to vault"]}
       />
       <header className="mobile-upload-header">
         <div className="brand-mark">SIV</div>
@@ -191,4 +194,75 @@ async function readUploadResponse(response, label) {
     };
   }
   return payload;
+}
+
+async function uploadBatchThroughServer(files, token) {
+  const body = new FormData();
+  body.append("token", token);
+  body.append("mode", "batch");
+  files.forEach((file) => body.append("files", file));
+  const response = await fetch("/api/mobile-upload", { method: "POST", body });
+  const payload = await readUploadResponse(response, "/api/mobile-upload");
+  if (!response.ok) throw new Error(payload.error);
+  return payload;
+}
+
+async function uploadInvoiceDirectly(files, token, setUploadStage) {
+  const fileHash = await fingerprintFiles(files);
+  const signResponse = await fetch("/api/mobile-upload/sign", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      token,
+      fileHash,
+      files: files.map((file) => ({ name: file.name, type: file.type, size: file.size, lastModified: file.lastModified }))
+    })
+  });
+  const signPayload = await readUploadResponse(signResponse, "/api/mobile-upload/sign");
+  if (!signResponse.ok) throw new Error(signPayload.error);
+  if (signPayload.duplicate) return signPayload;
+
+  const supabase = getSupabaseBrowser();
+  for (const [index, file] of files.entries()) {
+    const upload = signPayload.uploads[index];
+    setUploadStage(`Uploading page ${index + 1} of ${files.length}`);
+    const result = await supabase.storage
+      .from(signPayload.bucket)
+      .uploadToSignedUrl(upload.path, upload.token, file, { contentType: upload.mimeType || file.type });
+    if (result.error) throw result.error;
+  }
+
+  setUploadStage("Saving invoice record");
+  const completeResponse = await fetch("/api/mobile-upload/complete", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ sessionToken: signPayload.sessionToken })
+  });
+  const payload = await readUploadResponse(completeResponse, "/api/mobile-upload/complete");
+  if (!completeResponse.ok) throw new Error(payload.error);
+  return payload;
+}
+
+async function fingerprintFiles(files) {
+  const parts = [];
+  for (const [index, file] of files.entries()) {
+    const sample = await sampleFile(file);
+    parts.push(`${index}:${file.name}:${file.type}:${file.size}:${file.lastModified}:${sample}`);
+  }
+  const encoded = new TextEncoder().encode(parts.join("|"));
+  const digest = await crypto.subtle.digest("SHA-256", encoded);
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function sampleFile(file) {
+  const sampleSize = Math.min(64 * 1024, file.size || 0);
+  if (!sampleSize) return "";
+  const first = await file.slice(0, sampleSize).arrayBuffer();
+  const lastStart = Math.max(0, file.size - sampleSize);
+  const last = await file.slice(lastStart, file.size).arrayBuffer();
+  const combined = new Uint8Array(first.byteLength + last.byteLength);
+  combined.set(new Uint8Array(first), 0);
+  combined.set(new Uint8Array(last), first.byteLength);
+  const digest = await crypto.subtle.digest("SHA-256", combined);
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
