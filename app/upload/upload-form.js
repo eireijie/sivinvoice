@@ -45,55 +45,20 @@ export function UploadForm() {
     event.preventDefault();
     if (!files.length) return;
     setBusy(true);
-    setUploadStage("Preparing secure upload");
+    setUploadStage("Uploading invoice");
     setError("");
     setDuplicate(null);
     let payload = {};
     try {
-      const fileHash = await fingerprintFiles(files);
-      const signResponse = await fetch("/api/upload/sign", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          fileHash,
-          files: files.map((file) => ({ name: file.name, type: file.type, size: file.size, lastModified: file.lastModified }))
-        })
-      });
-      const signPayload = await signResponse.json().catch(() => ({}));
-      if (!signResponse.ok) {
+      const serverUpload = await uploadThroughServer(files);
+      if (serverUpload.ok) {
+        payload = serverUpload.payload;
+      } else if (shouldTryStorageFallback(serverUpload)) {
+        payload = await uploadThroughStorage(files, setUploadStage);
+      } else {
         setBusy(false);
         setUploadStage("");
-        setError(uploadErrorMessage(signResponse, signPayload));
-        return;
-      }
-      if (signPayload.duplicate) {
-        setBusy(false);
-        setUploadStage("");
-        setDuplicate(signPayload);
-        return;
-      }
-
-      const supabase = getSupabaseBrowser();
-      for (const [index, file] of files.entries()) {
-        const upload = signPayload.uploads[index];
-        setUploadStage(`Uploading page ${index + 1} of ${files.length}`);
-        const result = await supabase.storage
-          .from(signPayload.bucket)
-          .uploadToSignedUrl(upload.path, upload.token, file, { contentType: upload.mimeType || file.type });
-        if (result.error) throw result.error;
-      }
-
-      setUploadStage("Creating invoice record");
-      const completeResponse = await fetch("/api/upload/complete", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ sessionToken: signPayload.sessionToken })
-      });
-      payload = await completeResponse.json().catch(() => ({}));
-      setBusy(false);
-      setUploadStage("");
-      if (!completeResponse.ok) {
-        setError(uploadErrorMessage(completeResponse, payload));
+        setError(serverUpload.message);
         return;
       }
     } catch (uploadError) {
@@ -102,6 +67,8 @@ export function UploadForm() {
       setError(uploadError?.message || "Upload did not finish. Check your connection, then try again with the same files.");
       return;
     }
+    setBusy(false);
+    setUploadStage("");
     if (payload.duplicate) {
       setDuplicate(payload);
       return;
@@ -217,6 +184,78 @@ function formatBytes(bytes) {
   const units = ["B", "KB", "MB", "GB"];
   const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+async function uploadThroughServer(files) {
+  const body = new FormData();
+  files.forEach((file) => body.append("files", file));
+  try {
+    const response = await fetch("/api/upload", { method: "POST", body });
+    const payload = await response.json().catch(() => ({}));
+    if (response.ok) return { ok: true, payload };
+    return {
+      ok: false,
+      status: response.status,
+      payload,
+      message: uploadErrorMessage(response, payload)
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      payload: {},
+      networkError: true,
+      message: error?.message || "Upload did not finish."
+    };
+  }
+}
+
+async function uploadThroughStorage(files, setUploadStage) {
+  setUploadStage("Preparing large upload");
+  const fileHash = await fingerprintFiles(files);
+  const signResponse = await fetch("/api/upload/sign", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      fileHash,
+      files: files.map((file) => ({ name: file.name, type: file.type, size: file.size, lastModified: file.lastModified }))
+    })
+  });
+  const signPayload = await signResponse.json().catch(() => ({}));
+  if (!signResponse.ok) throw new Error(uploadErrorMessage(signResponse, signPayload));
+  if (signPayload.duplicate) return signPayload;
+
+  const supabase = getSupabaseBrowser();
+  for (const [index, file] of files.entries()) {
+    const upload = signPayload.uploads[index];
+    setUploadStage(`Uploading page ${index + 1} of ${files.length}`);
+    const result = await supabase.storage
+      .from(signPayload.bucket)
+      .uploadToSignedUrl(upload.path, upload.token, file, { contentType: upload.mimeType || file.type });
+    if (result.error) throw result.error;
+  }
+
+  setUploadStage("Creating invoice record");
+  const completeResponse = await fetch("/api/upload/complete", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ sessionToken: signPayload.sessionToken })
+  });
+  const payload = await completeResponse.json().catch(() => ({}));
+  if (!completeResponse.ok) throw new Error(uploadErrorMessage(completeResponse, payload));
+  return payload;
+}
+
+function shouldTryStorageFallback(result) {
+  if (result.ok) return false;
+  const message = String(result.message || result.payload?.error || "").toLowerCase();
+  return result.networkError
+    || result.status === 0
+    || result.status === 413
+    || message.includes("payload")
+    || message.includes("body")
+    || message.includes("large")
+    || message.includes("failed to fetch");
 }
 
 async function fingerprintFiles(files) {
