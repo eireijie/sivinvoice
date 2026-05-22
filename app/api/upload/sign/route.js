@@ -72,6 +72,11 @@ export async function POST(request) {
 
     return NextResponse.json({ bucket, uploads, sessionToken });
   } catch (error) {
+    console.error("Signed invoice upload failed", {
+      message: error.message,
+      code: error.code || null,
+      status: error.status || null
+    });
     return NextResponse.json({ error: error.message, code: error.code || null, storage: error.storage || null }, { status: error.status || 500 });
   }
 }

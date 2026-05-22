@@ -54,7 +54,14 @@ export function UploadForm() {
       if (serverUpload.ok) {
         payload = serverUpload.payload;
       } else if (shouldTryStorageFallback(serverUpload)) {
-        payload = await uploadThroughStorage(files, setUploadStage);
+        try {
+          payload = await uploadThroughStorage(files, setUploadStage);
+        } catch (fallbackError) {
+          setBusy(false);
+          setUploadStage("");
+          setError(`Upload failed after retry. First: ${serverUpload.message}. Retry: ${fallbackError?.message || "Unknown storage upload error."}`);
+          return;
+        }
       } else {
         setBusy(false);
         setUploadStage("");
@@ -249,13 +256,9 @@ async function uploadThroughStorage(files, setUploadStage) {
 function shouldTryStorageFallback(result) {
   if (result.ok) return false;
   const message = String(result.message || result.payload?.error || "").toLowerCase();
-  return result.networkError
-    || result.status === 0
-    || result.status === 413
-    || message.includes("payload")
-    || message.includes("body")
-    || message.includes("large")
-    || message.includes("failed to fetch");
+  if (result.status === 400 || result.status === 401 || result.status === 402 || result.status === 403) return false;
+  if (message.includes("unsupported") || message.includes("storage limit") || message.includes("sign in")) return false;
+  return true;
 }
 
 async function fingerprintFiles(files) {

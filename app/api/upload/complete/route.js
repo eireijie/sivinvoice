@@ -18,6 +18,10 @@ export async function POST(request) {
     after(() => processNextQueuedInvoices({ limit: 1 }).catch((error) => console.error("Queue worker failed", error)));
     return NextResponse.json(result);
   } catch (error) {
+    console.error("Completing invoice upload failed", {
+      message: error.message,
+      status: error.status || null
+    });
     return NextResponse.json({ error: error.message }, { status: error.status || 500 });
   }
 }
