@@ -50,7 +50,7 @@ export function UploadForm() {
     setDuplicate(null);
     let payload = {};
     try {
-      const fileHash = await hashFiles(files);
+      const fileHash = await fingerprintFiles(files);
       const signResponse = await fetch("/api/upload/sign", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -96,10 +96,10 @@ export function UploadForm() {
         setError(uploadErrorMessage(completeResponse, payload));
         return;
       }
-    } catch {
+    } catch (uploadError) {
       setBusy(false);
       setUploadStage("");
-      setError("Upload did not finish. Check your connection, then try again with the same files.");
+      setError(uploadError?.message || "Upload did not finish. Check your connection, then try again with the same files.");
       return;
     }
     if (payload.duplicate) {
@@ -219,20 +219,26 @@ function formatBytes(bytes) {
   return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
-async function hashFiles(files) {
-  const chunks = [];
-  let total = 0;
-  for (const file of files) {
-    const buffer = await file.arrayBuffer();
-    chunks.push(new Uint8Array(buffer));
-    total += buffer.byteLength;
+async function fingerprintFiles(files) {
+  const parts = [];
+  for (const [index, file] of files.entries()) {
+    const sample = await sampleFile(file);
+    parts.push(`${index}:${file.name}:${file.type}:${file.size}:${file.lastModified}:${sample}`);
   }
-  const combined = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    combined.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
+  const encoded = new TextEncoder().encode(parts.join("|"));
+  const digest = await crypto.subtle.digest("SHA-256", encoded);
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function sampleFile(file) {
+  const sampleSize = Math.min(64 * 1024, file.size || 0);
+  if (!sampleSize) return "";
+  const first = await file.slice(0, sampleSize).arrayBuffer();
+  const lastStart = Math.max(0, file.size - sampleSize);
+  const last = await file.slice(lastStart, file.size).arrayBuffer();
+  const combined = new Uint8Array(first.byteLength + last.byteLength);
+  combined.set(new Uint8Array(first), 0);
+  combined.set(new Uint8Array(last), first.byteLength);
   const digest = await crypto.subtle.digest("SHA-256", combined);
   return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
