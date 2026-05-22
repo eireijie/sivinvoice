@@ -2,23 +2,23 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Folder, ReceiptText, RotateCcw, Search } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Folder, GitMerge, Plus, ReceiptText, RotateCcw, Search, X } from "lucide-react";
 
 const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
 export function VendorHistoryClient({ vendors }) {
-  const preparedVendors = useMemo(() => prepareVendors(vendors || []), [vendors]);
+  const [vendorRows, setVendorRows] = useState(vendors || []);
+  const preparedVendors = useMemo(() => prepareVendors(vendorRows), [vendorRows]);
   const [selectedVendorId, setSelectedVendorId] = useState(preparedVendors[0]?.id || "");
   const [vendorQuery, setVendorQuery] = useState("");
-  const [filters, setFilters] = useState({
-    text: "",
-    day: "",
-    month: "",
-    year: "",
-    from: "",
-    to: "",
-    sort: "recent"
-  });
+  const [newVendorName, setNewVendorName] = useState("");
+  const [filters, setFilters] = useState({ text: "", day: "", from: "", to: "", sort: "recent" });
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [mergeSourceId, setMergeSourceId] = useState("");
+  const [busy, setBusy] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   const visibleVendors = preparedVendors.filter((vendor) => {
     const query = vendorQuery.trim().toLowerCase();
@@ -27,7 +27,58 @@ export function VendorHistoryClient({ vendors }) {
   });
   const selectedVendor = preparedVendors.find((vendor) => vendor.id === selectedVendorId) || visibleVendors[0] || preparedVendors[0];
   const invoices = useMemo(() => filterInvoices(selectedVendor?.invoices || [], filters), [selectedVendor, filters]);
-  const resetFilters = { text: "", day: "", month: "", year: "", from: "", to: "", sort: "recent" };
+  const mergeOptions = preparedVendors.filter((vendor) => vendor.id !== selectedVendor?.id);
+  const resetFilters = { text: "", day: "", from: "", to: "", sort: "recent" };
+
+  async function addVendor(event) {
+    event.preventDefault();
+    const name = newVendorName.trim();
+    if (!name) return;
+    setBusy("add");
+    setMessage("");
+    setError("");
+    const response = await fetch("/api/vendors", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name })
+    });
+    const payload = await response.json();
+    setBusy("");
+    if (!response.ok) {
+      setError(payload.error || "Unable to add vendor folder.");
+      return;
+    }
+    setVendorRows((current) => upsertVendorRow(current, payload.vendor));
+    setSelectedVendorId(payload.vendor.id);
+    setNewVendorName("");
+    setMessage("Vendor folder added.");
+  }
+
+  async function mergeVendor() {
+    if (!selectedVendor || !mergeSourceId) return;
+    const sourceVendor = preparedVendors.find((vendor) => vendor.id === mergeSourceId);
+    const confirmed = window.confirm(`Merge ${sourceVendor?.name || "this vendor"} into ${selectedVendor.name}? Its invoices will move into ${selectedVendor.name}.`);
+    if (!confirmed) return;
+
+    setBusy("merge");
+    setMessage("");
+    setError("");
+    const response = await fetch(`/api/vendors/${selectedVendor.id}/merge`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sourceVendorId: mergeSourceId })
+    });
+    const payload = await response.json();
+    setBusy("");
+    if (!response.ok) {
+      setError(payload.error || "Unable to merge vendor folders.");
+      return;
+    }
+    setVendorRows((current) => mergeVendorRows(current, selectedVendor.id, mergeSourceId));
+    setMergeOpen(false);
+    setMergeSourceId("");
+    setMessage("Vendor folders merged.");
+  }
 
   return (
     <div className="vendor-history">
@@ -38,6 +89,23 @@ export function VendorHistoryClient({ vendors }) {
             <p className="muted">{preparedVendors.length} vendors saved</p>
           </div>
         </div>
+
+        <form className="vendor-add-form" onSubmit={addVendor}>
+          <label className="field">
+            <span>Add vendor folder</span>
+            <input
+              className="input"
+              placeholder="Vendor name..."
+              value={newVendorName}
+              onChange={(event) => setNewVendorName(event.target.value)}
+            />
+          </label>
+          <button className="button" disabled={busy === "add" || !newVendorName.trim()} type="submit">
+            <Plus size={16} />
+            {busy === "add" ? "Adding..." : "Add"}
+          </button>
+        </form>
+
         <label className="field">
           <span>Find vendor</span>
           <div className="input-with-icon">
@@ -50,6 +118,10 @@ export function VendorHistoryClient({ vendors }) {
             />
           </div>
         </label>
+
+        {message ? <div className="inline-message ok">{message}</div> : null}
+        {error ? <div className="inline-message error">{error}</div> : null}
+
         <div className="vendor-folder-list">
           {visibleVendors.length ? visibleVendors.map((vendor) => (
             <button
@@ -81,11 +153,45 @@ export function VendorHistoryClient({ vendors }) {
                   {invoices.length} of {selectedVendor.invoiceCount} invoices shown · {currency.format(sumInvoices(invoices))}
                 </p>
               </div>
-              <button className="button ghost" type="button" onClick={() => setFilters(resetFilters)}>
-                <RotateCcw size={16} />
-                Reset filters
-              </button>
+              <div className="vendor-actions">
+                <button className="button secondary" disabled={mergeOptions.length === 0} type="button" onClick={() => setMergeOpen(true)}>
+                  <GitMerge size={16} />
+                  Merge
+                </button>
+                <button className="button ghost" type="button" onClick={() => setFilters(resetFilters)}>
+                  <RotateCcw size={16} />
+                  Reset filters
+                </button>
+              </div>
             </div>
+
+            {mergeOpen ? (
+              <div className="vendor-merge-box">
+                <div>
+                  <h3>Merge another vendor into {selectedVendor.name}</h3>
+                  <p className="muted">Invoices from the selected vendor will move into this folder, then the old folder is removed.</p>
+                </div>
+                <label className="field">
+                  <span>Vendor to merge</span>
+                  <select className="select" value={mergeSourceId} onChange={(event) => setMergeSourceId(event.target.value)}>
+                    <option value="">Choose vendor</option>
+                    {mergeOptions.map((vendor) => (
+                      <option key={vendor.id} value={vendor.id}>{vendor.name} · {vendor.invoiceCount} invoices</option>
+                    ))}
+                  </select>
+                </label>
+                <div className="vendor-merge-actions">
+                  <button className="button" disabled={busy === "merge" || !mergeSourceId} onClick={mergeVendor} type="button">
+                    <GitMerge size={16} />
+                    {busy === "merge" ? "Merging..." : "Merge folders"}
+                  </button>
+                  <button className="button ghost" onClick={() => setMergeOpen(false)} type="button">
+                    <X size={16} />
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : null}
 
             <div className="vendor-date-tools">
               <label className="field vendor-search-field">
@@ -97,25 +203,19 @@ export function VendorHistoryClient({ vendors }) {
                   onChange={(event) => setFilters({ ...filters, text: event.target.value })}
                 />
               </label>
-              <label className="field">
-                <span>Day</span>
-                <input className="input" type="date" value={filters.day} onChange={(event) => setFilters({ ...filters, day: event.target.value })} />
-              </label>
-              <label className="field">
-                <span>Month</span>
-                <input className="input" type="month" value={filters.month} onChange={(event) => setFilters({ ...filters, month: event.target.value })} />
-              </label>
-              <label className="field">
-                <span>Year</span>
-                <input
-                  className="input"
-                  inputMode="numeric"
-                  maxLength={4}
-                  placeholder="2026"
-                  value={filters.year}
-                  onChange={(event) => setFilters({ ...filters, year: event.target.value.replace(/\D/g, "").slice(0, 4) })}
-                />
-              </label>
+              <CalendarFilter
+                open={calendarOpen}
+                selectedDate={filters.day}
+                onClear={() => {
+                  setFilters({ ...filters, day: "" });
+                  setCalendarOpen(false);
+                }}
+                onSelect={(day) => {
+                  setFilters({ ...filters, day });
+                  setCalendarOpen(false);
+                }}
+                onToggle={() => setCalendarOpen((value) => !value)}
+              />
               <label className="field">
                 <span>From</span>
                 <input className="input" type="date" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} />
@@ -173,7 +273,7 @@ export function VendorHistoryClient({ vendors }) {
                         <div className="empty-state">
                           <CalendarDays size={22} />
                           <strong>No invoices match these date filters.</strong>
-                          <span>Clear the day, month, year, or date range to see more invoices.</span>
+                          <span>Clear the calendar date or date range to see more invoices.</span>
                         </div>
                       </td>
                     </tr>
@@ -186,10 +286,73 @@ export function VendorHistoryClient({ vendors }) {
           <div className="empty-state">
             <Folder size={26} />
             <strong>No vendor folders yet.</strong>
-            <span>Upload invoices and SIV will organize them by vendor automatically.</span>
+            <span>Add a vendor folder or upload invoices and SIV will organize them automatically.</span>
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function CalendarFilter({ open, selectedDate, onClear, onSelect, onToggle }) {
+  const selected = parseDate(selectedDate) || new Date();
+  const [viewYear, setViewYear] = useState(selected.getFullYear());
+  const [viewMonth, setViewMonth] = useState(selected.getMonth());
+  const days = calendarDays(viewYear, viewMonth);
+
+  function shiftMonth(delta) {
+    const next = new Date(Date.UTC(viewYear, viewMonth + delta, 1));
+    setViewYear(next.getUTCFullYear());
+    setViewMonth(next.getUTCMonth());
+  }
+
+  return (
+    <div className="field calendar-field">
+      <span>Calendar date</span>
+      <button className="button secondary calendar-trigger" type="button" onClick={onToggle}>
+        <CalendarDays size={16} />
+        {selectedDate || "Choose day"}
+      </button>
+      {open ? (
+        <div className="calendar-popover">
+          <div className="calendar-top">
+            <button className="icon-button" type="button" onClick={() => shiftMonth(-1)} aria-label="Previous month">
+              <ChevronLeft size={17} />
+            </button>
+            <select className="select" value={viewMonth} onChange={(event) => setViewMonth(Number(event.target.value))}>
+              {monthNames().map((month, index) => <option key={month} value={index}>{month}</option>)}
+            </select>
+            <input
+              className="input calendar-year"
+              inputMode="numeric"
+              value={viewYear}
+              onChange={(event) => setViewYear(Number(event.target.value.replace(/\D/g, "").slice(0, 4)) || new Date().getFullYear())}
+            />
+            <button className="icon-button" type="button" onClick={() => shiftMonth(1)} aria-label="Next month">
+              <ChevronRight size={17} />
+            </button>
+          </div>
+          <div className="calendar-weekdays">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}
+          </div>
+          <div className="calendar-grid">
+            {days.map((day) => (
+              <button
+                className={day.value === selectedDate ? "calendar-day active" : "calendar-day"}
+                disabled={!day.inMonth}
+                key={day.value}
+                onClick={() => onSelect(day.value)}
+                type="button"
+              >
+                {day.label}
+              </button>
+            ))}
+          </div>
+          <div className="calendar-actions">
+            <button className="button ghost" type="button" onClick={onClear}>Clear date</button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -226,12 +389,33 @@ function filterInvoices(invoices, filters) {
     ].filter(Boolean).join(" ").toLowerCase();
     if (query && !haystack.includes(query)) return false;
     if (filters.day && invoice.invoice_date !== filters.day) return false;
-    if (filters.month && invoiceMonth(invoice.invoice_date) !== filters.month) return false;
-    if (filters.year && invoiceYear(invoice.invoice_date) !== filters.year) return false;
     if (filters.from && dateValue(invoice.invoice_date) < dateValue(filters.from)) return false;
     if (filters.to && dateValue(invoice.invoice_date) > dateValue(filters.to)) return false;
     return true;
   }).sort((a, b) => compareInvoices(a, b, filters.sort));
+}
+
+function upsertVendorRow(vendors, vendor) {
+  if (!vendor) return vendors;
+  const exists = vendors.some((item) => item.id === vendor.id);
+  if (exists) return vendors.map((item) => item.id === vendor.id ? { ...item, ...vendor, invoices: item.invoices || [] } : item);
+  return [...vendors, { ...vendor, invoices: [] }];
+}
+
+function mergeVendorRows(vendors, targetVendorId, sourceVendorId) {
+  const source = vendors.find((vendor) => vendor.id === sourceVendorId);
+  return vendors
+    .filter((vendor) => vendor.id !== sourceVendorId)
+    .map((vendor) => {
+      if (vendor.id !== targetVendorId) return vendor;
+      return {
+        ...vendor,
+        invoices: [
+          ...(vendor.invoices || []),
+          ...((source?.invoices || []).map((invoice) => ({ ...invoice, vendor_id: targetVendorId })))
+        ]
+      };
+    });
 }
 
 function compareInvoices(a, b, sort) {
@@ -245,12 +429,29 @@ function sumInvoices(invoices) {
   return invoices.reduce((sum, invoice) => sum + Number(invoice.invoiceTotal || 0), 0);
 }
 
-function invoiceMonth(value) {
-  return value ? String(value).slice(0, 7) : "";
+function calendarDays(year, month) {
+  const firstDay = new Date(Date.UTC(year, month, 1));
+  const start = new Date(firstDay);
+  start.setUTCDate(1 - firstDay.getUTCDay());
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(start);
+    date.setUTCDate(start.getUTCDate() + index);
+    return {
+      value: date.toISOString().slice(0, 10),
+      label: date.getUTCDate(),
+      inMonth: date.getUTCMonth() === month
+    };
+  });
 }
 
-function invoiceYear(value) {
-  return value ? String(value).slice(0, 4) : "";
+function monthNames() {
+  return Array.from({ length: 12 }, (_, index) => new Date(Date.UTC(2026, index, 1)).toLocaleString("en-US", { month: "long", timeZone: "UTC" }));
+}
+
+function parseDate(value) {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function dateValue(value) {
