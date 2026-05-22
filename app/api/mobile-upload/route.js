@@ -9,6 +9,8 @@ import { runOcr } from "@/lib/ocr";
 import { assertStorageAvailable } from "@/lib/organization";
 import { verifyUploadToken } from "@/lib/uploadTokens";
 
+const maxSingleInvoiceFiles = 30;
+
 export async function POST(request) {
   try {
     const formData = await request.formData();
@@ -28,7 +30,7 @@ export async function POST(request) {
 async function handleInvoiceUpload({ formData, organizationId }) {
   const files = getUploadedFiles(formData);
   if (!files.length) return NextResponse.json({ error: "Attach one or more files for the same invoice." }, { status: 400 });
-  if (files.length > 6) return NextResponse.json({ error: "Upload up to 6 files for one invoice." }, { status: 400 });
+  if (files.length > maxSingleInvoiceFiles) return NextResponse.json({ error: `Upload up to ${maxSingleInvoiceFiles} files for one invoice.` }, { status: 400 });
 
   const prepared = await prepareFiles(files);
   const fileHash = hashBuffers(prepared.map((item) => item.buffer));

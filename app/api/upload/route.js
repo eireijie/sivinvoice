@@ -5,6 +5,8 @@ import { createPendingInvoiceUpload, findInvoiceByFileHash, processNextQueuedInv
 import { getUnsupportedInvoiceFileMessage, inferInvoiceMimeType } from "@/lib/invoiceFiles";
 import { assertStorageAvailable } from "@/lib/organization";
 
+const maxSingleInvoiceFiles = 30;
+
 export async function POST(request) {
   try {
     const formData = await request.formData();
@@ -14,8 +16,8 @@ export async function POST(request) {
     if (!files.length || files.some((file) => typeof file === "string")) {
       return NextResponse.json({ error: "Upload one or more files for the same invoice." }, { status: 400 });
     }
-    if (files.length > 6) {
-      return NextResponse.json({ error: "Upload Invoice supports up to 6 files for one invoice. Use Batch Upload for separate invoices." }, { status: 400 });
+    if (files.length > maxSingleInvoiceFiles) {
+      return NextResponse.json({ error: `Upload Invoice supports up to ${maxSingleInvoiceFiles} files for one invoice. Split anything larger into a separate invoice.` }, { status: 400 });
     }
     const filesWithTypes = files.map((file) => ({ file, mimeType: inferInvoiceMimeType(file) }));
     const unsupported = filesWithTypes.find((item) => !item.mimeType);

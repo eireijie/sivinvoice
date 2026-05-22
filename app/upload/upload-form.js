@@ -7,6 +7,8 @@ import { ProcessingOverlay } from "@/components/processing-overlay";
 import { optimizeInvoiceFiles } from "@/lib/clientInvoiceImages";
 import { invoiceFileAccept } from "@/lib/invoiceFiles";
 
+const maxSingleInvoiceFiles = 30;
+
 export function UploadForm() {
   const router = useRouter();
   const [files, setFiles] = useState([]);
@@ -24,7 +26,11 @@ export function UploadForm() {
     setFiles((current) => {
       const existingKeys = new Set(current.map(fileKey));
       const additions = optimized.filter((file) => !existingKeys.has(fileKey(file)));
-      return [...current, ...additions].slice(0, 6);
+      const nextFiles = [...current, ...additions];
+      if (nextFiles.length > maxSingleInvoiceFiles) {
+        setError(`Upload up to ${maxSingleInvoiceFiles} pages for one invoice. Split anything larger into a separate invoice.`);
+      }
+      return nextFiles.slice(0, maxSingleInvoiceFiles);
     });
     setOptimizing(false);
   }
@@ -41,11 +47,18 @@ export function UploadForm() {
     setDuplicate(null);
     const body = new FormData();
     files.forEach((file) => body.append("files", file));
-    const response = await fetch("/api/upload", { method: "POST", body });
-    const payload = await response.json();
-    setBusy(false);
-    if (!response.ok) {
-      setError(payload.error || "Upload failed.");
+    let payload = {};
+    try {
+      const response = await fetch("/api/upload", { method: "POST", body });
+      payload = await response.json().catch(() => ({}));
+      setBusy(false);
+      if (!response.ok) {
+        setError(payload.error || "Upload failed.");
+        return;
+      }
+    } catch {
+      setBusy(false);
+      setError("Upload did not finish. Check your connection, then try again with the same files.");
       return;
     }
     if (payload.duplicate) {
@@ -81,7 +94,7 @@ export function UploadForm() {
             <p className="muted">
               {files.length
                 ? `${formatBytes(totalFileSize(files))} ready · tap to add another page`
-                : "Attach one PDF, or multiple photos/pages that all belong to the same invoice."}
+                : `Attach one PDF, or up to ${maxSingleInvoiceFiles} photos/pages that all belong to the same invoice.`}
             </p>
           </span>
         </label>
@@ -90,7 +103,7 @@ export function UploadForm() {
             <div className="selected-files-header">
               <div>
                 <h2>Ready to upload</h2>
-                <p className="muted">{files.length} file{files.length === 1 ? "" : "s"} will be saved as one invoice · {formatBytes(totalFileSize(files))}</p>
+                <p className="muted">{files.length} of {maxSingleInvoiceFiles} page files will be saved as one invoice · {formatBytes(totalFileSize(files))}</p>
               </div>
               <div className="selected-files-actions">
                 <label className="button secondary compact">

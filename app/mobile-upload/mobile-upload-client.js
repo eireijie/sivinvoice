@@ -6,6 +6,8 @@ import { optimizeInvoiceFiles } from "@/lib/clientInvoiceImages";
 import { invoiceFileAccept } from "@/lib/invoiceFiles";
 import { ProcessingOverlay } from "@/components/processing-overlay";
 
+const maxSingleInvoiceFiles = 30;
+
 export function MobileUploadClient({ mode, token }) {
   const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -23,7 +25,11 @@ export function MobileUploadClient({ mode, token }) {
     setFiles((current) => {
       const existing = new Set(current.map(fileKey));
       const additions = optimized.filter((file) => !existing.has(fileKey(file)));
-      return mode === "invoice" ? [...current, ...additions].slice(0, 6) : [...current, ...additions];
+      const nextFiles = [...current, ...additions];
+      if (mode === "invoice" && nextFiles.length > maxSingleInvoiceFiles) {
+        setError(`Upload up to ${maxSingleInvoiceFiles} pages for one invoice.`);
+      }
+      return mode === "invoice" ? nextFiles.slice(0, maxSingleInvoiceFiles) : nextFiles;
     });
   }
 
@@ -37,11 +43,18 @@ export function MobileUploadClient({ mode, token }) {
     body.append("token", token);
     body.append("mode", mode);
     files.forEach((file) => body.append("files", file));
-    const response = await fetch("/api/mobile-upload", { method: "POST", body });
-    const payload = await response.json();
-    setBusy(false);
-    if (!response.ok) {
-      setError(payload.error || "Upload failed.");
+    let payload = {};
+    try {
+      const response = await fetch("/api/mobile-upload", { method: "POST", body });
+      payload = await response.json().catch(() => ({}));
+      setBusy(false);
+      if (!response.ok) {
+        setError(payload.error || "Upload failed.");
+        return;
+      }
+    } catch {
+      setBusy(false);
+      setError("Upload did not finish. Check the connection, then try again.");
       return;
     }
     setFiles([]);
@@ -79,7 +92,7 @@ export function MobileUploadClient({ mode, token }) {
       <p className="mobile-upload-note">
         {mode === "batch"
           ? "Attach separate invoice files. Each image becomes its own invoice; PDFs are detected as batches."
-          : "Attach one PDF, or multiple photos/pages that all belong to the same invoice."}
+          : `Attach one PDF, or up to ${maxSingleInvoiceFiles} photos/pages that all belong to the same invoice.`}
       </p>
       <form className="grid mobile-upload-form" onSubmit={submit}>
         <label className={files.length ? "drop file-drop is-ready" : "drop file-drop"}>
