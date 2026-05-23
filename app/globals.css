@@ -230,6 +230,14 @@ textarea {
   box-shadow: 0 10px 24px rgba(0, 155, 114, .26);
   font-size: 13px;
   font-weight: 900;
+  overflow: hidden;
+}
+
+.brand-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .sidebar-resize-handle {
@@ -2333,6 +2341,8 @@ tr:last-child td {
   .settings-header,
   .settings-two-col,
   .theme-options,
+  .brand-preset-grid,
+  .brand-color-grid,
   .billing-settings-card,
   .signup-plan-grid,
   .settings-plan-grid,
@@ -3828,6 +3838,157 @@ tr:last-child td {
   border-color: rgba(0, 155, 114, .38);
   box-shadow: var(--shadow-accent);
   transform: translateY(-2px);
+}
+
+.branding-editor {
+  display: grid;
+  gap: 16px;
+  max-width: 780px;
+}
+
+.branding-preview {
+  min-height: 92px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 15% 0%, var(--accent-soft), transparent 16rem),
+    var(--panel);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+}
+
+.brand-preview-mark {
+  width: 54px;
+  height: 54px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-weight: 900;
+  box-shadow: var(--shadow-accent);
+  overflow: hidden;
+}
+
+.brand-preview-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.branding-preview strong,
+.branding-preview span {
+  display: block;
+}
+
+.branding-preview strong {
+  font-size: 18px;
+}
+
+.branding-preview span {
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.logo-upload-card {
+  border: 1px dashed var(--line-strong);
+  border-radius: 16px;
+  background: var(--bg);
+  padding: 18px;
+  display: grid;
+  gap: 7px;
+  cursor: pointer;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.logo-upload-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-accent);
+  transform: translateY(-1px);
+}
+
+.logo-upload-card svg {
+  color: var(--accent-dark);
+}
+
+.logo-upload-card strong,
+.logo-upload-card span {
+  display: block;
+}
+
+.logo-upload-card span {
+  color: var(--muted);
+}
+
+.logo-upload-card input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.brand-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.brand-preset {
+  min-height: 90px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--ink);
+  padding: 12px;
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.brand-preset span {
+  height: 28px;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.22);
+}
+
+.brand-preset strong {
+  font-size: 13px;
+}
+
+.brand-preset.active,
+.brand-preset:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-accent);
+}
+
+.brand-color-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.color-field {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.color-field span {
+  grid-column: 1 / -1;
+}
+
+.color-field input[type="color"] {
+  width: 46px;
+  height: 46px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  padding: 3px;
+  cursor: pointer;
 }
 
 .billing-console {

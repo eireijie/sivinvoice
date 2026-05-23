@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, CreditCard, Lock, Moon, PanelLeft, PanelTop, ReceiptText, Save, ShieldCheck, Sun, User, WalletCards } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CreditCard, Image as ImageIcon, Lock, Moon, Palette, PanelLeft, PanelTop, ReceiptText, Save, ShieldCheck, Sun, User, WalletCards } from "lucide-react";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 import { getPlan, PLAN_ORDER, PLANS, planStatusLabel } from "@/lib/plans";
 
@@ -12,6 +12,14 @@ const sections = [
   { id: "billing", label: "Billing", icon: CreditCard }
 ];
 
+const brandPresets = [
+  { id: "siv", name: "SIV Emerald", primary: "#009B72", secondary: "#22C58F" },
+  { id: "emerald", name: "Deep Emerald", primary: "#047857", secondary: "#34D399" },
+  { id: "blue", name: "Midnight Blue", primary: "#2563EB", secondary: "#60A5FA" },
+  { id: "burgundy", name: "Burgundy", primary: "#9F1239", secondary: "#FB7185" },
+  { id: "charcoal", name: "Charcoal Gold", primary: "#334155", secondary: "#D97706" }
+];
+
 export function SettingsClient({ workspace }) {
   const [active, setActive] = useState("profile");
   const [businessName, setBusinessName] = useState(workspace.organization.name || "");
@@ -19,6 +27,11 @@ export function SettingsClient({ workspace }) {
   const [lastName, setLastName] = useState(workspace.user.lastName || "");
   const [theme, setTheme] = useState("light");
   const [sidebarLayout, setSidebarLayout] = useState("vertical");
+  const [brandTheme, setBrandTheme] = useState(workspace.organization.branding?.theme || "siv");
+  const [brandPrimary, setBrandPrimary] = useState(workspace.organization.branding?.primary || "#009B72");
+  const [brandSecondary, setBrandSecondary] = useState(workspace.organization.branding?.secondary || "#22C58F");
+  const [brandLogoUrl, setBrandLogoUrl] = useState(workspace.organization.branding?.logoUrl || "");
+  const [brandLogoFile, setBrandLogoFile] = useState(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState("");
@@ -178,6 +191,58 @@ export function SettingsClient({ workspace }) {
     window.dispatchEvent(new CustomEvent("siv:sidebar-layout", { detail: { layout: nextLayout } }));
     setMessage(`${nextLayout === "horizontal" ? "Horizontal navigation" : "Vertical sidebar"} applied.`);
     setError("");
+  }
+
+  function chooseBrandPreset(preset) {
+    setBrandTheme(preset.id);
+    setBrandPrimary(preset.primary);
+    setBrandSecondary(preset.secondary);
+    setMessage(`${preset.name} selected. Save branding to apply it for this business.`);
+    setError("");
+  }
+
+  function chooseLogo(file) {
+    if (!file) return;
+    setBrandLogoFile(file);
+    setBrandLogoUrl(URL.createObjectURL(file));
+    setMessage("Logo selected. Save branding to apply it.");
+    setError("");
+  }
+
+  async function saveBranding(event) {
+    event.preventDefault();
+    setSaving("branding");
+    setMessage("");
+    setError("");
+    const formData = new FormData();
+    formData.append("theme", brandTheme);
+    formData.append("primary", brandPrimary);
+    formData.append("secondary", brandSecondary);
+    if (brandLogoFile) formData.append("logo", brandLogoFile);
+
+    const response = await fetch("/api/workspace/branding", {
+      method: "PATCH",
+      body: formData
+    });
+    const payload = await response.json();
+    setSaving("");
+    if (!response.ok) {
+      setError(payload.error || "Unable to save branding.");
+      return;
+    }
+    const nextBranding = payload.branding || {
+      logoUrl: brandLogoUrl,
+      primary: brandPrimary,
+      secondary: brandSecondary,
+      theme: brandTheme
+    };
+    setBrandLogoFile(null);
+    setBrandLogoUrl(nextBranding.logoUrl || brandLogoUrl);
+    setBrandPrimary(nextBranding.primary || brandPrimary);
+    setBrandSecondary(nextBranding.secondary || brandSecondary);
+    setBrandTheme(nextBranding.theme || brandTheme);
+    window.dispatchEvent(new CustomEvent("siv:branding", { detail: { branding: nextBranding } }));
+    setMessage("Business branding saved.");
   }
 
   async function openBillingPortal() {
@@ -370,8 +435,66 @@ export function SettingsClient({ workspace }) {
           <section className="settings-section panel">
             <div className="settings-section-title">
               <h2>Appearance</h2>
-              <p className="muted">Choose how SIV looks on this device.</p>
+              <p className="muted">Choose how SIV looks for this business and on this device.</p>
             </div>
+            <form className="settings-control-group" onSubmit={saveBranding}>
+              <div>
+                <h3>Business branding</h3>
+                <p className="muted">Upload your logo and choose the accent colors people see in the app.</p>
+              </div>
+              <div className="branding-editor">
+                <div className="branding-preview">
+                  <div className="brand-preview-mark" style={{ background: `linear-gradient(135deg, ${brandPrimary}, ${brandSecondary})` }}>
+                    {brandLogoUrl ? <img alt="" src={brandLogoUrl} /> : "SIV"}
+                  </div>
+                  <div>
+                    <strong>{businessName.trim() || "Business name"}</strong>
+                    <span>Sidebar preview</span>
+                  </div>
+                </div>
+
+                <label className="logo-upload-card">
+                  <ImageIcon size={20} />
+                  <strong>{brandLogoFile ? brandLogoFile.name : brandLogoUrl ? "Change logo" : "Upload logo"}</strong>
+                  <span>PNG, JPG, WEBP, or SVG. Max 2 MB.</span>
+                  <input accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" type="file" onChange={(event) => chooseLogo(event.target.files?.[0])} />
+                </label>
+
+                <div className="brand-preset-grid">
+                  {brandPresets.map((preset) => (
+                    <button
+                      className={brandTheme === preset.id ? "brand-preset active" : "brand-preset"}
+                      key={preset.id}
+                      onClick={() => chooseBrandPreset(preset)}
+                      type="button"
+                    >
+                      <span style={{ background: `linear-gradient(135deg, ${preset.primary}, ${preset.secondary})` }} />
+                      <strong>{preset.name}</strong>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="brand-color-grid">
+                  <label className="field color-field">
+                    <span>Primary color</span>
+                    <input type="color" value={safeColorValue(brandPrimary)} onChange={(event) => setBrandPrimary(event.target.value.toUpperCase())} />
+                    <input className="input" value={brandPrimary} onChange={(event) => setBrandPrimary(event.target.value)} />
+                  </label>
+                  <label className="field color-field">
+                    <span>Secondary color</span>
+                    <input type="color" value={safeColorValue(brandSecondary)} onChange={(event) => setBrandSecondary(event.target.value.toUpperCase())} />
+                    <input className="input" value={brandSecondary} onChange={(event) => setBrandSecondary(event.target.value)} />
+                  </label>
+                </div>
+
+                <div>
+                  <button className="button" disabled={saving === "branding"} type="submit">
+                    <Palette size={16} />
+                    {saving === "branding" ? "Saving..." : "Save branding"}
+                  </button>
+                </div>
+              </div>
+            </form>
             <div className="settings-control-group">
               <div>
                 <h3>Navigation layout</h3>
@@ -606,4 +729,8 @@ function formatBytes(bytes) {
   if (value >= 1024 ** 2) return `${(value / 1024 ** 2).toFixed(1)} MB`;
   if (value >= 1024) return `${(value / 1024).toFixed(0)} KB`;
   return `${value} B`;
+}
+
+function safeColorValue(value) {
+  return /^#[0-9a-f]{6}$/i.test(String(value || "")) ? value : "#009B72";
 }

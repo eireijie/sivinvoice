@@ -24,6 +24,7 @@ const bottomNav = [
 export function AppShell({ children, eyebrow, title, action }) {
   const pathname = usePathname();
   const [businessName, setBusinessName] = useState("SIV");
+  const [branding, setBranding] = useState({ logoUrl: null, primary: "#009B72", secondary: "#22C58F", theme: "siv" });
   const [planId, setPlanId] = useState(null);
   const [sidebarWidth, setSidebarWidth] = useState(248);
   const [sidebarLayout, setSidebarLayout] = useState("vertical");
@@ -37,6 +38,9 @@ export function AppShell({ children, eyebrow, title, action }) {
     function handleBusinessName(event) {
       setBusinessName(event.detail?.name?.trim() || "SIV");
     }
+    function handleBranding(event) {
+      setBranding((current) => ({ ...current, ...(event.detail?.branding || {}) }));
+    }
     function handleSidebarLayout(event) {
       const nextLayout = event.detail?.layout;
       if (nextLayout === "horizontal" || nextLayout === "vertical") setSidebarLayout(nextLayout);
@@ -48,6 +52,7 @@ export function AppShell({ children, eyebrow, title, action }) {
         const payload = await response.json();
         const nextName = payload.workspace?.organization?.name?.trim();
         if (mounted && nextName) setBusinessName(nextName);
+        if (mounted && payload.workspace?.organization?.branding) setBranding((current) => ({ ...current, ...payload.workspace.organization.branding }));
         if (mounted) setPlanId(payload.workspace?.storage?.plan?.id || payload.workspace?.billing?.plan || "free");
       } catch {
         // Keep the public brand as the fallback when account details are unavailable.
@@ -55,11 +60,13 @@ export function AppShell({ children, eyebrow, title, action }) {
       }
     }
     window.addEventListener("siv:business-name", handleBusinessName);
+    window.addEventListener("siv:branding", handleBranding);
     window.addEventListener("siv:sidebar-layout", handleSidebarLayout);
     loadBusinessName();
     return () => {
       mounted = false;
       window.removeEventListener("siv:business-name", handleBusinessName);
+      window.removeEventListener("siv:branding", handleBranding);
       window.removeEventListener("siv:sidebar-layout", handleSidebarLayout);
     };
   }, []);
@@ -93,10 +100,23 @@ export function AppShell({ children, eyebrow, title, action }) {
     .join(" ");
 
   return (
-    <div className={shellClassName} style={{ "--sidebar-width": `${sidebarWidth}px` }}>
+    <div
+      className={shellClassName}
+      data-brand-theme={branding.theme || "siv"}
+      style={{
+        "--sidebar-width": `${sidebarWidth}px`,
+        "--accent": branding.primary || "#009B72",
+        "--accent-secondary": branding.secondary || "#22C58F",
+        "--accent-dark": darkenHex(branding.primary || "#009B72", 0.28),
+        "--accent-soft": hexToRgba(branding.primary || "#009B72", 0.12),
+        "--shadow-accent": `0 8px 24px ${hexToRgba(branding.primary || "#009B72", 0.24)}`
+      }}
+    >
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">SIV</div>
+          <div className="brand-mark">
+            {branding.logoUrl ? <img alt="" className="brand-logo" src={branding.logoUrl} /> : "SIV"}
+          </div>
           <span title={businessName}>{businessName}</span>
         </div>
         <nav className="nav">
@@ -158,4 +178,27 @@ export function AppShell({ children, eyebrow, title, action }) {
 
 function clampSidebarWidth(width) {
   return Math.min(320, Math.max(84, Math.round(width)));
+}
+
+function darkenHex(hex, amount) {
+  const rgb = parseHex(hex);
+  if (!rgb) return "#006B50";
+  return rgbToHex(rgb.map((channel) => Math.max(0, Math.round(channel * (1 - amount)))));
+}
+
+function hexToRgba(hex, alpha) {
+  const rgb = parseHex(hex);
+  if (!rgb) return `rgba(0, 155, 114, ${alpha})`;
+  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
+}
+
+function parseHex(hex) {
+  const match = String(hex || "").match(/^#?([0-9a-f]{6})$/i);
+  if (!match) return null;
+  const value = match[1];
+  return [0, 2, 4].map((start) => parseInt(value.slice(start, start + 2), 16));
+}
+
+function rgbToHex(rgb) {
+  return `#${rgb.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }

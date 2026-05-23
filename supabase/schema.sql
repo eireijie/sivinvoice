@@ -10,6 +10,10 @@ create table if not exists organizations (
   billing_customer_id text,
   billing_subscription_id text,
   billing_current_period_end timestamptz,
+  logo_path text,
+  brand_primary text not null default '#009b72',
+  brand_secondary text not null default '#22c58f',
+  brand_theme text not null default 'siv',
   created_at timestamptz not null default now()
 );
 
@@ -18,6 +22,10 @@ alter table organizations add column if not exists subscription_status text not 
 alter table organizations add column if not exists billing_customer_id text;
 alter table organizations add column if not exists billing_subscription_id text;
 alter table organizations add column if not exists billing_current_period_end timestamptz;
+alter table organizations add column if not exists logo_path text;
+alter table organizations add column if not exists brand_primary text not null default '#009b72';
+alter table organizations add column if not exists brand_secondary text not null default '#22c58f';
+alter table organizations add column if not exists brand_theme text not null default 'siv';
 alter table invoice_batches add column if not exists original_file_size_bytes bigint not null default 0;
 alter table invoice_batches add column if not exists processing_priority integer not null default 0;
 alter table invoices add column if not exists original_file_size_bytes bigint not null default 0;
