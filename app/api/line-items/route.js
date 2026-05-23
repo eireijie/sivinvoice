@@ -3,11 +3,13 @@ import { listLineItems } from "@/lib/invoices";
 
 export async function GET(request) {
   try {
-    const limitParam = new URL(request.url).searchParams.get("limit");
-    const limit = Math.min(1000, Math.max(1, Number(limitParam) || 500));
-    const rows = await listLineItems(limit);
+    const params = new URL(request.url).searchParams;
+    const limit = Math.min(1000, Math.max(1, Number(params.get("limit")) || 500));
+    const offset = Math.max(0, Number(params.get("offset")) || 0);
+    const rows = await listLineItems({ limit, offset });
     return NextResponse.json({
       rows,
+      nextOffset: rows.length === limit ? offset + rows.length : null,
       filters: {
         vendors: unique(rows.map((row) => row.vendor_name)),
         stores: unique(rows.map((row) => row.store_name)),

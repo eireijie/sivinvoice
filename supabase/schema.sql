@@ -183,8 +183,10 @@ as $$
 $$;
 
 drop function if exists search_invoice_line_items(text, text);
+drop function if exists search_invoice_line_items(text, text, uuid);
+drop function if exists search_invoice_line_items(text, text, uuid, integer);
 
-create or replace function search_invoice_line_items(search_term text, normalized_term text, active_organization_id uuid)
+create or replace function search_invoice_line_items(search_term text, normalized_term text, active_organization_id uuid, result_limit integer default 1000)
 returns table (
   line_item_id uuid,
   invoice_id uuid,
@@ -265,7 +267,7 @@ as $$
       or li.product_name_normalized in (select canonical_name from alias_matches)
     )
   order by rank desc, i.invoice_date desc nulls last
-  limit 100;
+  limit least(greatest(coalesce(result_limit, 1000), 1), 10000);
 $$;
 
 alter table organizations enable row level security;

@@ -4008,6 +4008,15 @@ tr:last-child td {
   gap: 14px;
 }
 
+.load-more-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 8px 0 0;
+  flex-wrap: wrap;
+}
+
 .color-field {
   display: grid;
   grid-template-columns: 46px minmax(0, 1fr);
