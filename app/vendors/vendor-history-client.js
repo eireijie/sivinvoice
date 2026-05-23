@@ -23,7 +23,7 @@ export function VendorHistoryClient({ vendors }) {
   const visibleVendors = preparedVendors.filter((vendor) => {
     const query = vendorQuery.trim().toLowerCase();
     if (!query) return true;
-    return vendor.name.toLowerCase().includes(query);
+    return [vendor.name, ...(vendor.aliases || [])].join(" ").toLowerCase().includes(query);
   });
   const selectedVendor = preparedVendors.find((vendor) => vendor.id === selectedVendorId) || visibleVendors[0] || preparedVendors[0];
   const invoices = useMemo(() => filterInvoices(selectedVendor?.invoices || [], filters), [selectedVendor, filters]);
@@ -157,6 +157,7 @@ export function VendorHistoryClient({ vendors }) {
               <span className="vendor-folder-copy">
                 <strong>{vendor.name}</strong>
                 <small>{vendor.invoiceCount} invoices · {currency.format(vendor.totalCost)}</small>
+                {vendor.aliases?.length ? <small>Includes {vendor.aliases.join(", ")}</small> : null}
               </span>
             </button>
           )) : (
@@ -175,6 +176,9 @@ export function VendorHistoryClient({ vendors }) {
                 <p className="muted">
                   {invoices.length} of {selectedVendor.invoiceCount} invoices shown · {currency.format(sumInvoices(invoices))}
                 </p>
+                {selectedVendor.aliases?.length ? (
+                  <p className="muted small-text">Grouped with {selectedVendor.aliases.join(", ")}</p>
+                ) : null}
               </div>
               <div className="vendor-actions">
                 <button className="button secondary" disabled={mergeOptions.length === 0} type="button" onClick={() => setMergeOpen(true)}>
@@ -385,7 +389,7 @@ function CalendarFilter({ open, selectedDate, onClear, onSelect, onToggle }) {
 }
 
 function prepareVendors(vendors) {
-  return vendors.map((vendor) => {
+  const prepared = vendors.map((vendor) => {
     const invoices = (vendor.invoices || []).map((invoice) => {
       const lines = invoice.invoice_line_items || [];
       const lineTotal = lines.reduce((sum, line) => sum + Number(line.total_cost || 0), 0);
@@ -402,7 +406,93 @@ function prepareVendors(vendors) {
       invoiceCount: invoices.length,
       totalCost: sumInvoices(invoices)
     };
-  }).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  });
+
+  return groupSimilarVendors(prepared)
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+}
+
+function groupSimilarVendors(vendors) {
+  const canonicalByAcronym = new Map();
+  vendors.forEach((vendor) => {
+    const acronym = vendorAcronym(vendor.name);
+    const normalized = normalizeVendorName(vendor.name);
+    if (acronym.length >= 3 && normalized !== acronym) {
+      canonicalByAcronym.set(acronym, knownVendorKey(vendor.name) || normalized);
+    }
+  });
+
+  const groups = new Map();
+  vendors.forEach((vendor) => {
+    const normalized = normalizeVendorName(vendor.name);
+    const key = knownVendorKey(vendor.name) || canonicalByAcronym.get(normalized) || normalized;
+    const existing = groups.get(key);
+    if (!existing) {
+      groups.set(key, {
+        ...vendor,
+        vendorIds: [vendor.id],
+        aliases: [vendor.name],
+        invoices: vendor.invoices || []
+      });
+      return;
+    }
+
+    const mergedInvoices = [...(existing.invoices || []), ...((vendor.invoices || []).map((invoice) => ({ ...invoice, vendor_id: existing.id })))];
+    groups.set(key, {
+      ...existing,
+      vendorIds: [...existing.vendorIds, vendor.id],
+      aliases: uniqueNames([...existing.aliases, vendor.name]),
+      invoices: mergedInvoices,
+      invoiceCount: mergedInvoices.length,
+      totalCost: sumInvoices(mergedInvoices)
+    });
+  });
+
+  return [...groups.values()].map((vendor) => ({
+    ...vendor,
+    aliases: uniqueNames(vendor.aliases || []).filter((alias) => normalizeVendorName(alias) !== normalizeVendorName(vendor.name))
+  }));
+}
+
+function knownVendorKey(name) {
+  const normalized = normalizeVendorName(name);
+  if (normalized === "rndc" || normalized.includes("republic national distributing")) return "republic national distributing";
+  if (normalized.includes("southern glazer")) return "southern glazers";
+  return "";
+}
+
+function normalizeVendorName(name) {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\b(company|co|corporation|corp|incorporated|inc|limited|ltd|llc|l l c|distributor|distributors|dist|distr|wholesale|wine|spirits|liquor|liquors)\b/g, " ")
+    .replace(/\band\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function vendorAcronym(name) {
+  const ignored = new Set(["and", "the", "of", "company", "co", "corporation", "corp", "inc", "llc", "ltd"]);
+  return String(name || "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word && !ignored.has(word))
+    .map((word) => word[0])
+    .join("");
+}
+
+function uniqueNames(names) {
+  const seen = new Set();
+  return names.filter((name) => {
+    const key = normalizeVendorName(name);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function filterInvoices(invoices, filters) {
