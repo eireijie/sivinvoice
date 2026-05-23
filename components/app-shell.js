@@ -21,25 +21,32 @@ const bottomNav = [
   { href: "/settings", label: "Settings", icon: Settings, tourId: "settings" }
 ];
 
+const defaultBranding = { logoUrl: null, primary: "#009B72", secondary: "#22C58F", theme: "siv" };
+
 export function AppShell({ children, eyebrow, title, action }) {
   const pathname = usePathname();
-  const [businessName, setBusinessName] = useState("SIV");
-  const [branding, setBranding] = useState({ logoUrl: null, primary: "#009B72", secondary: "#22C58F", theme: "siv" });
-  const [planId, setPlanId] = useState(null);
-  const [sidebarWidth, setSidebarWidth] = useState(248);
-  const [sidebarLayout, setSidebarLayout] = useState("vertical");
+  const [businessName, setBusinessName] = useState(() => cachedString("siv-business-name", "SIV"));
+  const [branding, setBranding] = useState(() => cachedJson("siv-branding", defaultBranding));
+  const [planId, setPlanId] = useState(() => cachedString("siv-plan-id", ""));
+  const [sidebarWidth, setSidebarWidth] = useState(() => clampSidebarWidth(cachedNumber("siv-sidebar-width", 248)));
+  const [sidebarLayout, setSidebarLayout] = useState(() => {
+    const saved = cachedString("siv-sidebar-layout", "vertical");
+    return saved === "horizontal" || saved === "vertical" ? saved : "vertical";
+  });
 
   useEffect(() => {
-    const savedWidth = Number(window.localStorage.getItem("siv-sidebar-width"));
-    if (Number.isFinite(savedWidth)) setSidebarWidth(clampSidebarWidth(savedWidth));
-    const savedLayout = window.localStorage.getItem("siv-sidebar-layout");
-    if (savedLayout === "horizontal" || savedLayout === "vertical") setSidebarLayout(savedLayout);
     let mounted = true;
     function handleBusinessName(event) {
-      setBusinessName(event.detail?.name?.trim() || "SIV");
+      const nextName = event.detail?.name?.trim() || "SIV";
+      window.localStorage.setItem("siv-business-name", nextName);
+      setBusinessName(nextName);
     }
     function handleBranding(event) {
-      setBranding((current) => ({ ...current, ...(event.detail?.branding || {}) }));
+      setBranding((current) => {
+        const nextBranding = { ...current, ...(event.detail?.branding || {}) };
+        window.localStorage.setItem("siv-branding", JSON.stringify(nextBranding));
+        return nextBranding;
+      });
     }
     function handleSidebarLayout(event) {
       const nextLayout = event.detail?.layout;
@@ -51,9 +58,20 @@ export function AppShell({ children, eyebrow, title, action }) {
         if (!response.ok) return;
         const payload = await response.json();
         const nextName = payload.workspace?.organization?.name?.trim();
-        if (mounted && nextName) setBusinessName(nextName);
-        if (mounted && payload.workspace?.organization?.branding) setBranding((current) => ({ ...current, ...payload.workspace.organization.branding }));
-        if (mounted) setPlanId(payload.workspace?.storage?.plan?.id || payload.workspace?.billing?.plan || "free");
+        const nextPlan = payload.workspace?.storage?.plan?.id || payload.workspace?.billing?.plan || "free";
+        if (mounted && nextName) {
+          setBusinessName(nextName);
+          window.localStorage.setItem("siv-business-name", nextName);
+        }
+        if (mounted && payload.workspace?.organization?.branding) {
+          const nextBranding = { ...defaultBranding, ...payload.workspace.organization.branding };
+          setBranding(nextBranding);
+          window.localStorage.setItem("siv-branding", JSON.stringify(nextBranding));
+        }
+        if (mounted) {
+          setPlanId(nextPlan);
+          window.localStorage.setItem("siv-plan-id", nextPlan);
+        }
       } catch {
         // Keep the public brand as the fallback when account details are unavailable.
         if (mounted) setPlanId("free");
@@ -123,7 +141,7 @@ export function AppShell({ children, eyebrow, title, action }) {
           <span title={businessName}>{businessName}</span>
         </div>
         <nav className="nav">
-          {nav.filter((item) => !item.paidOnly || (planId && planId !== "free")).map((item) => {
+          {nav.filter((item) => !item.paidOnly || !planId || planId !== "free").map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
             return (
@@ -181,6 +199,26 @@ export function AppShell({ children, eyebrow, title, action }) {
 
 function clampSidebarWidth(width) {
   return Math.min(320, Math.max(84, Math.round(width)));
+}
+
+function cachedString(key, fallback) {
+  if (typeof window === "undefined") return fallback;
+  return window.localStorage.getItem(key) || fallback;
+}
+
+function cachedNumber(key, fallback) {
+  if (typeof window === "undefined") return fallback;
+  const value = Number(window.localStorage.getItem(key));
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function cachedJson(key, fallback) {
+  if (typeof window === "undefined") return fallback;
+  try {
+    return { ...fallback, ...JSON.parse(window.localStorage.getItem(key) || "{}") };
+  } catch {
+    return fallback;
+  }
 }
 
 function darkenHex(hex, amount) {
