@@ -440,7 +440,7 @@ export function SettingsClient({ workspace }) {
             <form className="settings-control-group" onSubmit={saveBranding}>
               <div>
                 <h3>Business branding</h3>
-                <p className="muted">Upload your logo and choose the accent colors people see in the app.</p>
+                <p className="muted">Upload your logo and choose the sidebar and top navigation gradient.</p>
               </div>
               <div className="branding-editor">
                 <div className="branding-preview">
@@ -476,12 +476,12 @@ export function SettingsClient({ workspace }) {
 
                 <div className="brand-color-grid">
                   <label className="field color-field">
-                    <span>Primary color</span>
+                    <span>Navigation base</span>
                     <input type="color" value={safeColorValue(brandPrimary)} onChange={(event) => setBrandPrimary(event.target.value.toUpperCase())} />
                     <input className="input" value={brandPrimary} onChange={(event) => setBrandPrimary(event.target.value)} />
                   </label>
                   <label className="field color-field">
-                    <span>Secondary color</span>
+                    <span>Navigation glow</span>
                     <input type="color" value={safeColorValue(brandSecondary)} onChange={(event) => setBrandSecondary(event.target.value.toUpperCase())} />
                     <input className="input" value={brandSecondary} onChange={(event) => setBrandSecondary(event.target.value)} />
                   </label>

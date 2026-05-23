@@ -109,7 +109,10 @@ export function AppShell({ children, eyebrow, title, action }) {
         "--accent-secondary": branding.secondary || "#22C58F",
         "--accent-dark": darkenHex(branding.primary || "#009B72", 0.28),
         "--accent-soft": hexToRgba(branding.primary || "#009B72", 0.12),
-        "--shadow-accent": `0 8px 24px ${hexToRgba(branding.primary || "#009B72", 0.24)}`
+        "--shadow-accent": `0 8px 24px ${hexToRgba(branding.primary || "#009B72", 0.24)}`,
+        "--sidebar": darkenHex(branding.primary || "#009B72", 0.74),
+        "--sidebar-2": darkenHex(branding.secondary || "#22C58F", 0.68),
+        "--sidebar-glow": hexToRgba(branding.secondary || "#22C58F", 0.2)
       }}
     >
       <aside className="sidebar">

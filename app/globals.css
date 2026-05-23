@@ -180,8 +180,8 @@ textarea {
 
 .sidebar {
   background:
-    radial-gradient(circle at 18% 0%, rgba(34, 197, 143, .16), transparent 18rem),
-    linear-gradient(180deg, var(--navy-2) 0%, var(--sidebar) 70%),
+    radial-gradient(circle at 18% 0%, var(--sidebar-glow, rgba(34, 197, 143, .16)), transparent 18rem),
+    linear-gradient(180deg, var(--sidebar-2) 0%, var(--sidebar) 70%),
     var(--sidebar);
   color: #f8fffc;
   padding: 24px 18px;
