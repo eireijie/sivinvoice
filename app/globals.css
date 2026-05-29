@@ -1642,16 +1642,20 @@ tr:last-child td {
 
   .dashboard-invoice-table td {
     border: 0;
-    display: grid;
+    display: flex;
+    align-items: flex-start;
     gap: 10px;
-    grid-template-columns: 92px minmax(0, 1fr);
+    justify-content: space-between;
+    overflow-wrap: normal;
     padding: 7px 0;
     white-space: normal;
+    word-break: normal;
   }
 
   .dashboard-invoice-table td::before {
     color: var(--muted);
     content: attr(data-label);
+    flex: 0 0 92px;
     font-size: 10px;
     font-weight: 900;
     letter-spacing: .04em;
@@ -1660,6 +1664,11 @@ tr:last-child td {
 
   .dashboard-invoice-table td[data-label=""] {
     display: block;
+  }
+
+  .dashboard-invoice-table td[data-label="Vendor"],
+  .dashboard-invoice-table td[data-label="Store"] {
+    line-height: 1.35;
   }
 
   .dashboard-invoice-table .button {
