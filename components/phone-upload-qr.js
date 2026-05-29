@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
-import { Camera, ExternalLink, QrCode, X } from "lucide-react";
+import { ExternalLink, QrCode, X } from "lucide-react";
 
 export function PhoneUploadQr({ mode = "invoice" }) {
   const [open, setOpen] = useState(false);
@@ -43,13 +43,12 @@ export function PhoneUploadQr({ mode = "invoice" }) {
     <>
       <section className="panel phone-upload-card">
         <div>
-          <span className="badge"><Camera size={14} /> Phone upload</span>
           <h2>Scan from your phone</h2>
           <p className="muted">Open a clean upload-only screen on your phone for taking photos or attaching files.</p>
         </div>
         <button className="button secondary" type="button" onClick={() => setOpen(true)}>
           <QrCode size={16} />
-          Show QR
+          Show QR code
         </button>
       </section>
 
@@ -58,7 +57,6 @@ export function PhoneUploadQr({ mode = "invoice" }) {
           <div className="panel phone-qr-modal">
             <div className="selected-files-header">
               <div>
-                <span className="badge">Phone upload</span>
                 <h2>Scan this QR code</h2>
                 <p className="muted">Your phone will open a page that only allows file upload.</p>
               </div>
