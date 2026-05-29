@@ -185,6 +185,7 @@ export function AppShell({ children, eyebrow, title, action }) {
             <span>Settings</span>
           </Link>
           <OnboardingTour label="Guide" launchClassName="mobile-menu-guide" />
+          <AuthStatus label="Exit" />
         </div>
       </section>
       <aside className="sidebar">

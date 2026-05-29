@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 
-export function AuthStatus() {
+export function AuthStatus({ label = "" }) {
   const [email, setEmail] = useState("");
 
   useEffect(() => {
@@ -27,6 +27,7 @@ export function AuthStatus() {
     <div className="auth-actions">
       <button className="button ghost icon-only" onClick={signOut} type="button" title="Sign out">
         <LogOut size={16} />
+        {label ? <span>{label}</span> : null}
       </button>
     </div>
   );
