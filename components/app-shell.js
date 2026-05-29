@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, FileSearch, Files, GripVertical, Search, Settings, Store, Upload } from "lucide-react";
+import { ArrowLeft, BarChart3, FileSearch, Files, GripVertical, Search, Settings, Store, Upload } from "lucide-react";
 import { AuthStatus } from "@/components/auth-status";
 import { GlobalInvoiceDrop } from "@/components/global-invoice-drop";
 import { OnboardingTour } from "@/components/onboarding-tour";
@@ -22,6 +22,7 @@ const bottomNav = [
 ];
 
 const defaultBranding = { logoUrl: null, primary: "#009B72", secondary: "#22C58F", theme: "siv" };
+const mobileModeKey = "siv-mobile-mode-v2";
 
 export function AppShell({ children, eyebrow, title, action }) {
   const pathname = usePathname();
@@ -32,6 +33,10 @@ export function AppShell({ children, eyebrow, title, action }) {
   const [sidebarLayout, setSidebarLayout] = useState(() => {
     const saved = cachedString("siv-sidebar-layout", "vertical");
     return saved === "horizontal" || saved === "vertical" ? saved : "vertical";
+  });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.sessionStorage.getItem(mobileModeKey) !== "content";
   });
 
   useEffect(() => {
@@ -113,9 +118,25 @@ export function AppShell({ children, eyebrow, title, action }) {
 
   const sidebarHorizontal = sidebarLayout === "horizontal";
   const sidebarCompact = sidebarWidth <= 126 && !sidebarHorizontal;
-  const shellClassName = ["shell", sidebarCompact ? "sidebar-compact" : "", sidebarHorizontal ? "sidebar-horizontal" : ""]
+  const visibleNav = nav.filter((item) => !item.paidOnly || !planId || planId !== "free");
+  const shellClassName = [
+    "shell",
+    sidebarCompact ? "sidebar-compact" : "",
+    sidebarHorizontal ? "sidebar-horizontal" : "",
+    mobileMenuOpen ? "mobile-menu-open" : "mobile-page-open"
+  ]
     .filter(Boolean)
     .join(" ");
+
+  function openMobilePage() {
+    if (typeof window !== "undefined") window.sessionStorage.setItem(mobileModeKey, "content");
+    setMobileMenuOpen(false);
+  }
+
+  function openMobileMenu() {
+    if (typeof window !== "undefined") window.sessionStorage.setItem(mobileModeKey, "menu");
+    setMobileMenuOpen(true);
+  }
 
   return (
     <div
@@ -133,6 +154,39 @@ export function AppShell({ children, eyebrow, title, action }) {
         "--sidebar-glow": hexToRgba(branding.secondary || "#22C58F", 0.2)
       }}
     >
+      <section className="mobile-menu-screen" aria-label="Mobile navigation">
+        <div className="mobile-menu-brand">
+          <div className="brand-mark">
+            {branding.logoUrl ? <img alt="" className="brand-logo" src={branding.logoUrl} /> : "SIV"}
+          </div>
+          <div>
+            <strong title={businessName}>{businessName}</strong>
+            <span>Invoice vault</span>
+          </div>
+        </div>
+        <nav className="mobile-menu-nav">
+          {visibleNav.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link data-tour={item.tourId} href={item.href} key={item.href} onClick={openMobilePage}>
+                <Icon size={20} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+          <Link data-tour="review" href="/review" onClick={openMobilePage}>
+            <FileSearch size={20} />
+            <span>Invoice Review</span>
+          </Link>
+        </nav>
+        <div className="mobile-menu-footer">
+          <Link href="/settings" onClick={openMobilePage}>
+            <Settings size={18} />
+            <span>Settings</span>
+          </Link>
+          <OnboardingTour label="Guide" launchClassName="mobile-menu-guide" />
+        </div>
+      </section>
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-mark">
@@ -141,7 +195,7 @@ export function AppShell({ children, eyebrow, title, action }) {
           <span title={businessName}>{businessName}</span>
         </div>
         <nav className="nav">
-          {nav.filter((item) => !item.paidOnly || !planId || planId !== "free").map((item) => {
+          {visibleNav.map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
             return (
@@ -180,6 +234,13 @@ export function AppShell({ children, eyebrow, title, action }) {
         </button>
       </aside>
       <main className="main">
+        <div className="mobile-content-header">
+          <button type="button" onClick={openMobileMenu}>
+            <ArrowLeft size={18} />
+            Menu
+          </button>
+          <span>{title}</span>
+        </div>
         <div className="topbar">
           <div>
             {eyebrow ? <div className="eyebrow">{eyebrow}</div> : null}
