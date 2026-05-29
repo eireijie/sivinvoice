@@ -185,7 +185,7 @@ export function AppShell({ children, eyebrow, title, action }) {
             {eyebrow ? <div className="eyebrow">{eyebrow}</div> : null}
             <h1>{title}</h1>
           </div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div className="topbar-actions">
             <AuthStatus />
             {action}
           </div>
