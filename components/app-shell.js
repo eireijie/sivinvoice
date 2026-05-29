@@ -161,21 +161,31 @@ export function AppShell({ children, eyebrow, title, action }) {
           </div>
           <div>
             <strong title={businessName}>{businessName}</strong>
-            <span>Invoice vault</span>
+            <span>SIV invoice vault</span>
           </div>
+        </div>
+        <div className="mobile-menu-summary">
+          <span>Ready</span>
+          <strong>Choose a workspace area</strong>
         </div>
         <nav className="mobile-menu-nav">
           {visibleNav.map((item) => {
             const Icon = item.icon;
             return (
-              <Link data-tour={item.tourId} href={item.href} key={item.href} onClick={openMobilePage}>
-                <Icon size={20} />
+              <Link
+                className={item.href === "/upload" ? "mobile-menu-primary" : ""}
+                data-tour={item.tourId}
+                href={item.href}
+                key={item.href}
+                onClick={openMobilePage}
+              >
+                <span className="mobile-menu-icon"><Icon size={20} /></span>
                 <span>{item.label}</span>
               </Link>
             );
           })}
           <Link data-tour="review" href="/review" onClick={openMobilePage}>
-            <FileSearch size={20} />
+            <span className="mobile-menu-icon"><FileSearch size={20} /></span>
             <span>Invoice Review</span>
           </Link>
         </nav>
