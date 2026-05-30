@@ -22,7 +22,7 @@ const bottomNav = [
 ];
 
 const defaultBranding = { logoUrl: null, primary: "#009B72", secondary: "#22C58F", theme: "siv" };
-const mobileModeKey = "siv-mobile-mode-v2";
+const mobileModeKey = "siv-mobile-mode-v3";
 
 export function AppShell({ children, eyebrow, title, action }) {
   const pathname = usePathname();
@@ -35,8 +35,8 @@ export function AppShell({ children, eyebrow, title, action }) {
     return saved === "horizontal" || saved === "vertical" ? saved : "vertical";
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return window.sessionStorage.getItem(mobileModeKey) !== "content";
+    if (typeof window === "undefined") return false;
+    return window.sessionStorage.getItem(mobileModeKey) === "menu";
   });
 
   useEffect(() => {
@@ -138,6 +138,10 @@ export function AppShell({ children, eyebrow, title, action }) {
     setMobileMenuOpen(true);
   }
 
+  function isActivePath(href) {
+    return pathname === href || (href !== "/" && pathname.startsWith(href));
+  }
+
   return (
     <div
       className={shellClassName}
@@ -155,6 +159,9 @@ export function AppShell({ children, eyebrow, title, action }) {
       }}
     >
       <section className="mobile-menu-screen" aria-label="Mobile navigation">
+        <button className="mobile-menu-pull-tab" type="button" onClick={openMobilePage} aria-label="Return to current page">
+          <ArrowLeft size={20} />
+        </button>
         <div className="mobile-menu-brand">
           <div className="brand-mark">
             {branding.logoUrl ? <img alt="" className="brand-logo" src={branding.logoUrl} /> : "SIV"}
@@ -167,9 +174,10 @@ export function AppShell({ children, eyebrow, title, action }) {
         <nav className="mobile-menu-nav">
           {visibleNav.map((item) => {
             const Icon = item.icon;
+            const active = isActivePath(item.href);
             return (
               <Link
-                className={item.href === "/upload" ? "mobile-menu-primary" : ""}
+                className={active ? "mobile-menu-active" : ""}
                 data-tour={item.tourId}
                 href={item.href}
                 key={item.href}
@@ -180,13 +188,13 @@ export function AppShell({ children, eyebrow, title, action }) {
               </Link>
             );
           })}
-          <Link data-tour="review" href="/review" onClick={openMobilePage}>
+          <Link className={pathname.startsWith("/review") ? "mobile-menu-active" : ""} data-tour="review" href="/review" onClick={openMobilePage}>
             <span className="mobile-menu-icon"><FileSearch size={20} /></span>
             <span>Invoice Review</span>
           </Link>
         </nav>
         <div className="mobile-menu-footer">
-          <Link href="/settings" onClick={openMobilePage}>
+          <Link className={pathname.startsWith("/settings") ? "mobile-menu-active" : ""} href="/settings" onClick={openMobilePage}>
             <Settings size={18} />
             <span>Settings</span>
           </Link>
@@ -204,7 +212,7 @@ export function AppShell({ children, eyebrow, title, action }) {
         <nav className="nav">
           {visibleNav.map((item) => {
             const Icon = item.icon;
-            const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+            const active = isActivePath(item.href);
             return (
               <Link className={active ? "active" : ""} data-tour={item.tourId} href={item.href} key={item.href} title={item.label}>
                 <Icon size={18} />
