@@ -164,10 +164,6 @@ export function AppShell({ children, eyebrow, title, action }) {
             <span>SIV invoice vault</span>
           </div>
         </div>
-        <div className="mobile-menu-summary">
-          <span>Ready</span>
-          <strong>Choose a workspace area</strong>
-        </div>
         <nav className="mobile-menu-nav">
           {visibleNav.map((item) => {
             const Icon = item.icon;
