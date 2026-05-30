@@ -4,6 +4,7 @@ import { findInvoiceByFileHash } from "@/lib/invoices";
 import { getStorageBucket, getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { inferInvoiceMimeType } from "@/lib/invoiceFiles";
 import { assertStorageAvailable, getActiveOrganizationId } from "@/lib/organization";
+import { invoiceUploadStoragePath, todayStorageDay } from "@/lib/storagePaths";
 import { createUploadSessionToken } from "@/lib/uploadSessionTokens";
 
 const maxSingleInvoiceFiles = 30;
@@ -44,10 +45,16 @@ export async function POST(request) {
     const supabase = getSupabaseAdmin();
     const bucket = getStorageBucket();
     const uploadGroup = randomUUID();
-    const day = new Date().toISOString().slice(0, 10);
+    const day = todayStorageDay();
     const uploads = [];
     for (const [index, file] of preparedFiles.entries()) {
-      const path = `${day}/${uploadGroup}-${index + 1}-${safeName(file.name)}`;
+      const path = invoiceUploadStoragePath({
+        organizationId,
+        day,
+        uploadGroup,
+        index: index + 1,
+        fileName: file.name
+      });
       const signed = await supabase.storage.from(bucket).createSignedUploadUrl(path);
       if (signed.error) throw signed.error;
       uploads.push({
@@ -79,8 +86,4 @@ export async function POST(request) {
     });
     return NextResponse.json({ error: error.message, code: error.code || null, storage: error.storage || null }, { status: error.status || 500 });
   }
-}
-
-function safeName(name) {
-  return String(name || "invoice").replace(/[^a-zA-Z0-9._-]/g, "-");
 }
