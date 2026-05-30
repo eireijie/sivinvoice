@@ -29,32 +29,42 @@ export function SearchClient({ initialQuery }) {
   async function loadBrowseRows() {
     setLoadingBrowse(true);
     setError("");
-    const response = await fetch(`/api/line-items?limit=${pageSize}&offset=0`);
-    const payload = await response.json();
-    setLoadingBrowse(false);
-    if (!response.ok) {
-      setError(payload.error || "Unable to load invoice line items.");
-      return;
+    try {
+      const response = await fetch(`/api/line-items?limit=${pageSize}&offset=0`);
+      const payload = await response.json();
+      if (!response.ok) {
+        setError(payload.error || "Unable to load invoice line items.");
+        return;
+      }
+      setAllRows(payload.rows || []);
+      setFilters(payload.filters || { vendors: [], stores: [], sizes: [] });
+      setNextOffset(payload.nextOffset);
+    } catch {
+      setError("Unable to load line items. Check your connection.");
+    } finally {
+      setLoadingBrowse(false);
     }
-    setAllRows(payload.rows || []);
-    setFilters(payload.filters || { vendors: [], stores: [], sizes: [] });
-    setNextOffset(payload.nextOffset);
   }
 
   async function loadMoreRows() {
     if (nextOffset === null || loadingMore) return;
     setLoadingMore(true);
     setError("");
-    const response = await fetch(`/api/line-items?limit=${pageSize}&offset=${nextOffset}`);
-    const payload = await response.json();
-    setLoadingMore(false);
-    if (!response.ok) {
-      setError(payload.error || "Unable to load more invoice line items.");
-      return;
+    try {
+      const response = await fetch(`/api/line-items?limit=${pageSize}&offset=${nextOffset}`);
+      const payload = await response.json();
+      if (!response.ok) {
+        setError(payload.error || "Unable to load more invoice line items.");
+        return;
+      }
+      setAllRows((current) => mergeRows(current, payload.rows || []));
+      setFilters((current) => mergeFilters(current, payload.filters || {}));
+      setNextOffset(payload.nextOffset);
+    } catch {
+      setError("Unable to load more items. Check your connection.");
+    } finally {
+      setLoadingMore(false);
     }
-    setAllRows((current) => mergeRows(current, payload.rows || []));
-    setFilters((current) => mergeFilters(current, payload.filters || {}));
-    setNextOffset(payload.nextOffset);
   }
 
   const browseRows = allRows.filter((row) => {

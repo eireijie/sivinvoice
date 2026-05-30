@@ -203,6 +203,7 @@ export function SettingsClient({ workspace }) {
 
   function chooseLogo(file) {
     if (!file) return;
+    if (brandLogoUrl && brandLogoUrl.startsWith("blob:")) URL.revokeObjectURL(brandLogoUrl);
     setBrandLogoFile(file);
     setBrandLogoUrl(URL.createObjectURL(file));
     setMessage("Logo selected. Save branding to apply it.");

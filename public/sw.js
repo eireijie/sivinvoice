@@ -1,11 +1,13 @@
-self.addEventListener("install", function (event) {
-  event.waitUntil(self.skipWaiting());
+self.addEventListener("install", function () {
+  self.skipWaiting();
 });
 
 self.addEventListener("activate", function (event) {
-  event.waitUntil(self.clients.claim());
-});
-
-self.addEventListener("fetch", function () {
-  return;
+  event.waitUntil(
+    caches.keys().then(function (names) {
+      return Promise.all(names.map(function (name) { return caches.delete(name); }));
+    }).then(function () {
+      return self.clients.claim();
+    })
+  );
 });

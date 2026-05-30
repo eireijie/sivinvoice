@@ -37,21 +37,26 @@ export function VendorHistoryClient({ vendors }) {
     setBusy("add");
     setMessage("");
     setError("");
-    const response = await fetch("/api/vendors", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name })
-    });
-    const payload = await response.json();
-    setBusy("");
-    if (!response.ok) {
-      setError(payload.error || "Unable to add vendor folder.");
-      return;
+    try {
+      const response = await fetch("/api/vendors", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name })
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        setError(payload.error || "Unable to add vendor folder.");
+        return;
+      }
+      setVendorRows((current) => upsertVendorRow(current, payload.vendor));
+      setSelectedVendorId(payload.vendor.id);
+      setNewVendorName("");
+      setMessage("Vendor folder added.");
+    } catch {
+      setError("Unable to add vendor. Check your connection.");
+    } finally {
+      setBusy("");
     }
-    setVendorRows((current) => upsertVendorRow(current, payload.vendor));
-    setSelectedVendorId(payload.vendor.id);
-    setNewVendorName("");
-    setMessage("Vendor folder added.");
   }
 
   async function mergeVendor() {
@@ -63,21 +68,26 @@ export function VendorHistoryClient({ vendors }) {
     setBusy("merge");
     setMessage("");
     setError("");
-    const response = await fetch(`/api/vendors/${selectedVendor.id}/merge`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ sourceVendorId: mergeSourceId })
-    });
-    const payload = await response.json();
-    setBusy("");
-    if (!response.ok) {
-      setError(payload.error || "Unable to merge vendor folders.");
-      return;
+    try {
+      const response = await fetch(`/api/vendors/${selectedVendor.id}/merge`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sourceVendorId: mergeSourceId })
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        setError(payload.error || "Unable to merge vendor folders.");
+        return;
+      }
+      setVendorRows((current) => mergeVendorRows(current, selectedVendor.id, mergeSourceId));
+      setMergeOpen(false);
+      setMergeSourceId("");
+      setMessage("Vendor folders merged.");
+    } catch {
+      setError("Unable to merge vendors. Check your connection.");
+    } finally {
+      setBusy("");
     }
-    setVendorRows((current) => mergeVendorRows(current, selectedVendor.id, mergeSourceId));
-    setMergeOpen(false);
-    setMergeSourceId("");
-    setMessage("Vendor folders merged.");
   }
 
   async function deleteVendor() {
@@ -88,19 +98,24 @@ export function VendorHistoryClient({ vendors }) {
     setBusy("delete");
     setMessage("");
     setError("");
-    const response = await fetch(`/api/vendors/${selectedVendor.id}`, { method: "DELETE" });
-    const payload = await response.json();
-    setBusy("");
-    if (!response.ok) {
-      setError(payload.error || "Unable to delete vendor folder.");
-      return;
+    try {
+      const response = await fetch(`/api/vendors/${selectedVendor.id}`, { method: "DELETE" });
+      const payload = await response.json();
+      if (!response.ok) {
+        setError(payload.error || "Unable to delete vendor folder.");
+        return;
+      }
+      const remaining = preparedVendors.filter((vendor) => vendor.id !== selectedVendor.id);
+      setVendorRows((current) => current.filter((vendor) => vendor.id !== selectedVendor.id));
+      setSelectedVendorId(remaining[0]?.id || "");
+      setMergeOpen(false);
+      setMergeSourceId("");
+      setMessage("Vendor folder deleted. Invoices were kept.");
+    } catch {
+      setError("Unable to delete vendor. Check your connection.");
+    } finally {
+      setBusy("");
     }
-    const remaining = preparedVendors.filter((vendor) => vendor.id !== selectedVendor.id);
-    setVendorRows((current) => current.filter((vendor) => vendor.id !== selectedVendor.id));
-    setSelectedVendorId(remaining[0]?.id || "");
-    setMergeOpen(false);
-    setMergeSourceId("");
-    setMessage("Vendor folder deleted. Invoices were kept.");
   }
 
   return (

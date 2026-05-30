@@ -1,19 +1,23 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { ErrorPanel } from "@/components/error-panel";
-import { getDashboardStats, getRecentDuplicates, getRecentInvoices } from "@/lib/invoices";
-import { AlertTriangle, FileUp } from "lucide-react";
+import { getDashboardStats, getDashboardInsights, getRecentDuplicates, getRecentInvoices } from "@/lib/invoices";
+import { AlertTriangle, ArrowUpRight, ArrowDownRight, FileUp, FileText, Package, Users, ShieldCheck } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   let stats;
+  let insights;
   let recent;
   let duplicates;
   try {
-    stats = await getDashboardStats();
-    recent = await getRecentInvoices();
-    duplicates = await getRecentDuplicates();
+    [stats, insights, recent, duplicates] = await Promise.all([
+      getDashboardStats(),
+      getDashboardInsights(),
+      getRecentInvoices(),
+      getRecentDuplicates()
+    ]);
   } catch (error) {
     return (
       <AppShell eyebrow="Operations" title="Dashboard" action={<Link className="button" href="/upload"><FileUp size={16} />Upload</Link>}>
@@ -22,18 +26,91 @@ export default async function DashboardPage() {
     );
   }
 
+  const maxVendorAmount = Math.max(...(insights.topVendors || []).map(v => v.amount), 1);
+
   return (
     <AppShell eyebrow="Operations" title="Dashboard" action={<Link className="button" href="/upload"><FileUp size={16} />Upload Invoice</Link>}>
       <div className="grid cols-4">
-        <div className="card stat"><span className="muted">Invoices</span><strong>{stats.invoices}</strong></div>
-        <div className="card stat"><span className="muted">Bottle line items</span><strong>{stats.lineItems}</strong></div>
-        <div className="card stat"><span className="muted">Vendors</span><strong>{stats.vendors}</strong></div>
-        <div className="card stat duplicate-stat">
-          <span className="muted">Duplicates caught</span>
-          <strong>{stats.duplicates}</strong>
+        <div className="dashboard-stat">
+          <div className="dashboard-stat-icon"><FileText size={20} /></div>
+          <div>
+            <span className="muted">Total Invoices</span>
+            <strong>{stats.invoices}</strong>
+          </div>
+        </div>
+        <div className="dashboard-stat">
+          <div className="dashboard-stat-icon"><Package size={20} /></div>
+          <div>
+            <span className="muted">Line Items</span>
+            <strong>{stats.lineItems}</strong>
+          </div>
+        </div>
+        <div className="dashboard-stat">
+          <div className="dashboard-stat-icon"><Users size={20} /></div>
+          <div>
+            <span className="muted">Vendors</span>
+            <strong>{stats.vendors}</strong>
+          </div>
+        </div>
+        <div className="dashboard-stat">
+          <div className="dashboard-stat-icon"><ShieldCheck size={20} /></div>
+          <div>
+            <span className="muted">Duplicates Caught</span>
+            <strong>{stats.duplicates}</strong>
+          </div>
         </div>
       </div>
       <div style={{ height: 16 }} />
+      <div className="dashboard-two-col">
+        <section className="panel dashboard-spending">
+          <h2>Spending Summary</h2>
+          <div className="spending-amounts">
+            <div>
+              <span className="muted">This month</span>
+              <strong>{money(insights.spendThisMonth)}</strong>
+            </div>
+            <div>
+              <span className="muted">Last month</span>
+              <strong>{money(insights.spendLastMonth)}</strong>
+            </div>
+            <div className={`spending-trend ${insights.spendTrend > 0 ? "up" : "down"}`}>
+              {insights.spendTrend > 0 ? <ArrowUpRight /> : <ArrowDownRight />}
+              <strong>{Math.abs(insights.spendTrend).toFixed(1)}%</strong>
+            </div>
+          </div>
+        </section>
+        <section className="panel dashboard-top-vendors">
+          <h2>Top Vendors This Month</h2>
+          {insights.topVendors.length > 0 ? (
+            <div className="vendor-bars">
+              {insights.topVendors.map(v => (
+                <div key={v.name} className="vendor-bar-row">
+                  <span>{v.name}</span>
+                  <div className="vendor-bar">
+                    <span style={{ width: `${(v.amount / maxVendorAmount) * 100}%` }} />
+                  </div>
+                  <strong>{money(v.amount)}</strong>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="muted">No vendor data this month yet.</p>
+          )}
+        </section>
+      </div>
+      <div style={{ height: 16 }} />
+      {insights.needsReviewCount > 0 ? (
+        <>
+          <section className="panel dashboard-attention">
+            <div>
+              <h2><AlertTriangle size={18} /> Needs Attention</h2>
+              <p className="muted">{insights.needsReviewCount} invoice{insights.needsReviewCount === 1 ? "" : "s"} waiting for review.</p>
+            </div>
+            <Link className="button secondary" href="/review">Review Now</Link>
+          </section>
+          <div style={{ height: 16 }} />
+        </>
+      ) : null}
       {duplicates.length ? (
         <>
           <section className="panel grid">
@@ -85,4 +162,8 @@ export default async function DashboardPage() {
       </section>
     </AppShell>
   );
+}
+
+function money(value) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(value || 0));
 }

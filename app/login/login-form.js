@@ -21,7 +21,10 @@ export function LoginForm({ nextPath }) {
         ? await supabase.auth.signInWithPassword({ email, password })
         : await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: getAppUrl(nextPath) } });
       if (result.error) throw result.error;
-      if (password) window.location.href = nextPath;
+      if (password) {
+        const safe = nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/dashboard";
+        window.location.href = safe;
+      }
       else setMessage("Check your email for a sign-in link.");
     } catch (error) {
       setMessage(error.message);

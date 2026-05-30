@@ -61,14 +61,19 @@ export function InvoicesClient() {
   async function load() {
     setLoading(true);
     setError("");
-    const response = await fetch("/api/invoices?limit=500");
-    const payload = await response.json();
-    setLoading(false);
-    if (!response.ok) {
-      setError(payload.error || "Unable to load invoices.");
-      return;
+    try {
+      const response = await fetch("/api/invoices?limit=500");
+      const payload = await response.json();
+      if (!response.ok) {
+        setError(payload.error || "Unable to load invoices.");
+        return;
+      }
+      setInvoices(payload.invoices || []);
+    } catch {
+      setError("Unable to load invoices. Check your connection.");
+    } finally {
+      setLoading(false);
     }
-    setInvoices(payload.invoices || []);
   }
 
   async function createInvoice(event) {
@@ -97,13 +102,17 @@ export function InvoicesClient() {
     const ok = window.confirm(`Delete invoice ${invoice.invoice_number}? This also deletes its line items.`);
     if (!ok) return;
     setError("");
-    const response = await fetch(`/api/invoices/${invoice.id}`, { method: "DELETE" });
-    const payload = await response.json();
-    if (!response.ok) {
-      setError(payload.error || "Unable to delete invoice.");
-      return;
+    try {
+      const response = await fetch(`/api/invoices/${invoice.id}`, { method: "DELETE" });
+      const payload = await response.json();
+      if (!response.ok) {
+        setError(payload.error || "Unable to delete invoice.");
+        return;
+      }
+      setInvoices(invoices.filter((item) => item.id !== invoice.id));
+    } catch {
+      setError("Unable to delete invoice. Check your connection.");
     }
-    setInvoices(invoices.filter((item) => item.id !== invoice.id));
   }
 
   return (

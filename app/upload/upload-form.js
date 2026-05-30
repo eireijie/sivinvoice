@@ -22,7 +22,14 @@ export function UploadForm() {
     if (!selected.length) return;
     setOptimizing(true);
     setError("");
-    const optimized = await optimizeInvoiceFiles(selected);
+    let optimized;
+    try {
+      optimized = await optimizeInvoiceFiles(selected);
+    } catch {
+      setOptimizing(false);
+      setError("Unable to process selected files. Try different images.");
+      return;
+    }
     setFiles((current) => {
       const existingKeys = new Set(current.map(fileKey));
       const additions = optimized.filter((file) => !existingKeys.has(fileKey(file)));

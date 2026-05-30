@@ -83,29 +83,28 @@ export function ReviewForm({ invoice }) {
     processingStarted.current = true;
     let stopped = false;
 
-    async function watchProcessing() {
-      const interval = window.setInterval(async () => {
-        try {
-          const response = await fetch(`/api/invoices/${invoice.id}`);
-          const payload = await response.json();
-          const status = payload.invoice?.parse_status;
-          if (!stopped && status && status !== "processing") {
-            window.clearInterval(interval);
-            window.location.reload();
-          }
-        } catch {
-          // Keep polling. Temporary network misses should not strand the screen.
+    const interval = window.setInterval(async () => {
+      try {
+        const response = await fetch(`/api/invoices/${invoice.id}`);
+        const payload = await response.json();
+        const status = payload.invoice?.parse_status;
+        if (!stopped && status && status !== "processing") {
+          window.clearInterval(interval);
+          window.location.reload();
         }
-      }, 2500);
-      window.setTimeout(() => {
-        window.clearInterval(interval);
-        if (!stopped) window.location.reload();
-      }, 180000);
-    }
+      } catch {
+        // Keep polling. Temporary network misses should not strand the screen.
+      }
+    }, 2500);
+    const timeout = window.setTimeout(() => {
+      window.clearInterval(interval);
+      if (!stopped) window.location.reload();
+    }, 180000);
 
-    watchProcessing();
     return () => {
       stopped = true;
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
     };
   }, [invoice.id, isProcessing, router]);
 

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeft, BarChart3, FileSearch, Files, GripVertical, Search, Settings, Store, Upload } from "lucide-react";
+import { ArrowLeft, BarChart3, FileSearch, Files, GripVertical, Search, Settings, Store, TrendingUp, Upload } from "lucide-react";
 import { AuthStatus } from "@/components/auth-status";
 import { GlobalInvoiceDrop } from "@/components/global-invoice-drop";
 import { OnboardingTour } from "@/components/onboarding-tour";
@@ -14,6 +14,7 @@ const nav = [
   { href: "/batches", label: "Batch Upload", icon: Files, tourId: "batches", paidOnly: true },
   { href: "/invoices", label: "Invoices", icon: FileSearch, tourId: "invoices" },
   { href: "/search", label: "Search", icon: Search, tourId: "search" },
+  { href: "/prices", label: "Price Tracker", icon: TrendingUp, tourId: "prices" },
   { href: "/vendors", label: "Vendor History", icon: Store, tourId: "vendors" }
 ];
 
@@ -94,6 +95,14 @@ export function AppShell({ children, eyebrow, title, action }) {
     };
   }, []);
 
+  const resizeCleanupRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (resizeCleanupRef.current) resizeCleanupRef.current();
+    };
+  }, []);
+
   function startSidebarResize(event) {
     event.preventDefault();
     const startX = event.clientX;
@@ -106,14 +115,16 @@ export function AppShell({ children, eyebrow, title, action }) {
       window.localStorage.setItem("siv-sidebar-width", String(nextWidth));
     }
 
-    function onPointerUp() {
+    function cleanup() {
       document.body.classList.remove("sidebar-resizing");
       window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointerup", cleanup);
+      resizeCleanupRef.current = null;
     }
 
+    resizeCleanupRef.current = cleanup;
     window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointerup", cleanup);
   }
 
   const sidebarHorizontal = sidebarLayout === "horizontal";

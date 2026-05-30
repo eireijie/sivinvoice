@@ -1,5 +1,5 @@
 import "./globals.css";
-import { Toaster } from "@/components/toaster";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 export const metadata = {
   title: "SIV",
@@ -39,19 +39,9 @@ try {
             `
           }}
         />
-        {children}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", function () {
-    navigator.serviceWorker.register("/sw.js").catch(function () {});
-  });
-}
-            `
-          }}
-        />
-        <Toaster />
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
       </body>
     </html>
   );

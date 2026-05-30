@@ -7,6 +7,6 @@ export async function POST(_request, { params }) {
     const result = await createInvoiceFromDetected(routeParams.id);
     return NextResponse.json(result);
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: error.status || 500 });
   }
 }

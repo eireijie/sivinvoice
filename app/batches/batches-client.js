@@ -27,14 +27,19 @@ export function BatchesClient({ uploadOnly = false }) {
     setLoading(true);
     setError("");
     if (!preserveMessage) setMessage("");
-    const response = await fetch("/api/batches");
-    const payload = await response.json();
-    setLoading(false);
-    if (!response.ok) {
-      setError(payload.error || "Unable to load batches.");
-      return;
+    try {
+      const response = await fetch("/api/batches");
+      const payload = await response.json();
+      if (!response.ok) {
+        setError(payload.error || "Unable to load batches.");
+        return;
+      }
+      setBatches(payload.batches || []);
+    } catch {
+      setError("Unable to load batches. Check your connection.");
+    } finally {
+      setLoading(false);
     }
-    setBatches(payload.batches || []);
   }
 
   async function submit(event) {

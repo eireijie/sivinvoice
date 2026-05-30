@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Archive, ArrowRight, CheckCircle2, FileText, Search, ShieldCheck, UploadCloud } from "lucide-react";
+import { ArrowRight, CheckCircle2, FileText, Search, ShieldCheck, UploadCloud } from "lucide-react";
 import { PLAN_ORDER, PLANS } from "@/lib/plans";
 
 const storeTypes = ["Independent stores", "Retail teams", "Managers", "Bookkeepers", "Receiving teams"];

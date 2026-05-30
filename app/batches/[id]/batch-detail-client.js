@@ -15,26 +15,35 @@ export function BatchDetailClient({ batchId }) {
 
   async function load() {
     setError("");
-    const response = await fetch(`/api/batches/${batchId}`);
-    const payload = await response.json();
-    if (!response.ok) {
-      setError(payload.error || "Unable to load batch.");
-      return;
+    try {
+      const response = await fetch(`/api/batches/${batchId}`);
+      const payload = await response.json();
+      if (!response.ok) {
+        setError(payload.error || "Unable to load batch.");
+        return;
+      }
+      setBatch(payload.batch);
+    } catch {
+      setError("Unable to load batch. Check your connection.");
     }
-    setBatch(payload.batch);
   }
 
   async function createInvoice(detectedId) {
     setBusyId(detectedId);
     setError("");
-    const response = await fetch(`/api/batches/detected/${detectedId}/create-invoice`, { method: "POST" });
-    const payload = await response.json();
-    setBusyId("");
-    if (!response.ok) {
-      setError(payload.error || "Unable to create invoice.");
-      return;
+    try {
+      const response = await fetch(`/api/batches/detected/${detectedId}/create-invoice`, { method: "POST" });
+      const payload = await response.json();
+      if (!response.ok) {
+        setError(payload.error || "Unable to create invoice.");
+        return;
+      }
+      window.location.href = `/review/${payload.invoiceId}`;
+    } catch {
+      setError("Unable to create invoice. Check your connection.");
+    } finally {
+      setBusyId("");
     }
-    window.location.href = `/review/${payload.invoiceId}`;
   }
 
   if (error) return <div className="panel" style={{ color: "var(--danger)" }}>{error}</div>;

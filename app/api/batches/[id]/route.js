@@ -7,6 +7,6 @@ export async function GET(_request, { params }) {
     const batch = await getBatch(routeParams.id);
     return NextResponse.json({ batch });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: error.status || 500 });
   }
 }
